@@ -5,10 +5,14 @@ This plugin provides a Handwritten notes
 local logger = require("logger")
 local Blitbuffer = require("ffi/blitbuffer")
 local Dispatcher = require("dispatcher")
+local FrameContainer = require("ui/widget/container/framecontainer")
 local UIManager = require("ui/uimanager")
+local VerticalGroup = require("ui/widget/verticalgroup")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local Widget = require("ui/widget/widget")
+local Size = require("ui/size")
 local _ = require("gettext")
+local Screen = require("device").screen
 
 
 --[[
@@ -24,17 +28,22 @@ function NotesWidget:init()
   logger.info("NotesWidget:init()")
 end
 
-function NotesWidget:paintTo(bb, x, y) 
-  logger.info("NotesWidget:paintTo");
-  logger.info(bb);
-  local black = Blitbuffer.COLOR_BLACK
-  bb:paintRect(self.x, self.y, 2, 2, black)
-  UIManager:setDirty("ui", "full")
+function NotesWidget:getSize()
+  local size = Screen:getSize()
+  return {
+    w = size.w - 100,
+    h = size.h - 100,
+  }
 end
 
+function NotesWidget:paintTo(bb, x, y)
+  logger.dbg("NotesWidget:paintTo");
+  local black = Blitbuffer.COLOR_BLACK
+  bb:paintRect(self.x, self.y, 2, 2, black)
+end
 
 function NotesWidget:handleEvent(event)
-  logger.info("NotesWidget:handleEvent");
+  logger.dbg("NotesWidget:handleEvent");
   -- logger.info(event["args"])
   if event.args == nil then
     return false
@@ -49,11 +58,21 @@ function NotesWidget:handleEvent(event)
 
   self.x = pos.x;
   self.y = pos.y;
-  logger.info("x, y", self.x, self.y)
   UIManager:show(self)
 
   return true
 end
+
+local frame = FrameContainer:new {
+  radius = Size.radius.window,
+  bordersize = Size.border.window,
+  padding = 0,
+  margin = 50,
+  background = Blitbuffer.COLOR_WHITE,
+  VerticalGroup:new {
+    [1] = NotesWidget
+  }
+}
 
 local Notes = WidgetContainer:new {
   name = "notes",
@@ -62,17 +81,16 @@ local Notes = WidgetContainer:new {
 }
 
 function Notes:init()
-  logger.info("Notes:init");
+  logger.dbg("Notes:init");
   self:onDispatcherRegisterActions()
 
   self.ui.menu:registerToMainMenu(self)
 end
 
 function Notes:onNotesStart()
-  logger.info("Notes starting");
-  UIManager:show(NotesWidget);
+  logger.dbg("Notes starting");
+  UIManager:show(frame);
 end
-
 
 function Notes:onDispatcherRegisterActions()
   Dispatcher:registerAction("show_notes",
@@ -83,7 +101,7 @@ function Notes:addToMainMenu(menu_items)
   menu_items.notes = {
     text = _("Notes"),
     -- sorting_hint = "more_tools",
-    keep_menu_open = true,
+    -- keep_menu_open = true,
     callback = function()
       self:onNotesStart()
     end,
