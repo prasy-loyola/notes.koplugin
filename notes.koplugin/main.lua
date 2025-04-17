@@ -52,13 +52,8 @@ function NotesWidget:paintTo(bb, x, y)
   end
   if not self.bb then
     self.bb = Blitbuffer.new(NotesWidget.dimen.w, NotesWidget.dimen.h);
-    return
   end
-
-  logger.dbg("NotesWidget:paintTo", x, y);
-  local black = Blitbuffer.COLOR_BLACK
-  -- logger.dbg("Position", self.parent);
-  -- bb:paintRect(self.tx, self.ty, 10, 10, black)
+logger.dbg("NotesWidget:paintTo", x, y);
   bb:blitFrom(self.bb, 0, y, -1 * x, 0, self.dimen.w, self.dimen.h)
   logger.dbg("NotesWidget:paintTo dimen: ", self.dimen);
 end
@@ -80,15 +75,6 @@ function NotesWidget:handleEvent(event)
   local ty = pos.y - self.dimen.y;
   logger.dbg("Touch: tx", tx, "ty", ty);
   self.bb:paintRect(tx, ty, 10, 10, Blitbuffer.COLOR_WHITE)
-  -- local dimen = NotesWidget.parent:getSize();
-  -- dimen.x = self.x
-  -- dimen.y = self.y
-  -- logger.dbg("dimen", dimen);
-
-  -- UIManager:show(NotesWidget);
-  -- UIManager:setDirty("ui", dimen);
-  --
-
 
   UIManager:setDirty(self.parent2, function()
     return "ui", self.parent2.dimen
@@ -141,22 +127,8 @@ function Notes:init()
     }
   }
 
-  -- VerticalSpan:new {
-  --   width = Size.span.vertical_large * 2,
-  -- },
   NotesWidget.parent = self.dialog_frame[1]
   NotesWidget.parent2 = self.dialog_frame
-
-  logger.dbg("VerticalGroup ", NotesWidget.parent);
-  -- logger.dbg("NotesWidget.bb", NotesWidget.bb);
-  -- NotesWidget.dimen = Geom:new {
-  --   x = self.parent.getSize().x + self.dialog_frame.margin.w,
-  --   y = self.parent.dimen.y + self.title_bar.dimen.y,
-  --   w = self.parent.dimen.w * 0.8,
-  --   h = self.parent.dimen.h - self.title_bar.dimen.h,
-  -- }
-  NotesWidget.dimen = Geom:new { w = NotesWidget.parent:getSize().w, h = NotesWidget.parent:getSize().h }
-
   self:onDispatcherRegisterActions()
 
   self.ui.menu:registerToMainMenu(self)
