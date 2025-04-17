@@ -24,11 +24,11 @@ local Screen = require("device").screen
 --]]
 
 local NotesWidget = Widget:new {
-  dimen = Geom:new { w = 0, h = 0 },
-  x = 0,
-  y = 0,
-  tx = 0,
-  ty = 0,
+  -- dimen = Geom:new { w = 0, h = 0 },
+  dimen = Geom:new {
+    w = Screen:getSize().w * 0.8,
+    h = Screen:getSize().h * 0.6,
+  }
 
 }
 
@@ -37,21 +37,29 @@ function NotesWidget:init()
 end
 
 function NotesWidget:getSize()
-  local size = {}
-  size.w = 400;
-  size.h = 400;
-  return size;
+  -- local size = Geom:new {
+  --   w = Screen:getSize().w * 0.8,
+  --   h = Screen:getSize().h * 0.6,
+  -- }
+  return self.dimen;
 end
 
 function NotesWidget:paintTo(bb, x, y)
+  self.dimen.x = x;
+  self.dimen.y = y;
+  if not self.dimen or self.dimen.x == 0 or self.dimen.y == 0 then
+    return
+  end
+  if not self.bb then
+    self.bb = Blitbuffer.new(NotesWidget.dimen.w, NotesWidget.dimen.h);
+    return
+  end
+
   logger.dbg("NotesWidget:paintTo", x, y);
   local black = Blitbuffer.COLOR_BLACK
   -- logger.dbg("Position", self.parent);
-  self.x = x;
-  self.y = y;
-  self.dimen.x = x;
-  self.dimen.y = y;
-  bb:paintRect(self.tx, self.ty, 10, 10, black)
+  -- bb:paintRect(self.tx, self.ty, 10, 10, black)
+  bb:blitFrom(self.bb, 0, y, -1 * x, 0, self.dimen.w, self.dimen.h)
   logger.dbg("NotesWidget:paintTo dimen: ", self.dimen);
 end
 
@@ -68,9 +76,10 @@ function NotesWidget:handleEvent(event)
     return false
   end
 
-  self.tx = pos.x;
-  self.ty = pos.y;
-
+  local tx = pos.x - self.dimen.x;
+  local ty = pos.y - self.dimen.y;
+  logger.dbg("Touch: tx", tx, "ty", ty);
+  self.bb:paintRect(tx, ty, 10, 10, Blitbuffer.COLOR_WHITE)
   -- local dimen = NotesWidget.parent:getSize();
   -- dimen.x = self.x
   -- dimen.y = self.y
@@ -78,8 +87,11 @@ function NotesWidget:handleEvent(event)
 
   -- UIManager:show(NotesWidget);
   -- UIManager:setDirty("ui", dimen);
-  UIManager:setDirty(self, function()
-    return "ui", self.dimen
+  --
+
+
+  UIManager:setDirty(self.parent2, function()
+    return "ui", self.parent2.dimen
   end);
 
   return true
@@ -125,16 +137,17 @@ function Notes:init()
     VerticalGroup:new {
       align = "center",
       self.title_bar,
-      VerticalSpan:new {
-        width = Size.span.vertical_large * 2,
-      },
       NotesWidget,
     }
   }
 
+  -- VerticalSpan:new {
+  --   width = Size.span.vertical_large * 2,
+  -- },
   NotesWidget.parent = self.dialog_frame[1]
+  NotesWidget.parent2 = self.dialog_frame
+
   logger.dbg("VerticalGroup ", NotesWidget.parent);
-  NotesWidget.bb = Blitbuffer.new(NotesWidget.parent:getSize().w, NotesWidget.parent:getSize().h);
   -- logger.dbg("NotesWidget.bb", NotesWidget.bb);
   -- NotesWidget.dimen = Geom:new {
   --   x = self.parent.getSize().x + self.dialog_frame.margin.w,
@@ -157,7 +170,6 @@ end
 function Notes:onNotesStart()
   logger.dbg("Notes starting");
   UIManager:show(self.dialog_frame);
-  UIManager:show(NotesWidget);
 end
 
 function Notes:onDispatcherRegisterActions()
