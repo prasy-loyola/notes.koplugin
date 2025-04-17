@@ -5,9 +5,13 @@ This plugin provides a Handwritten notes
 local logger = require("logger")
 local Blitbuffer = require("ffi/blitbuffer")
 local Dispatcher = require("dispatcher")
+local FocusManager = require("ui/widget/focusmanager")
 local FrameContainer = require("ui/widget/container/framecontainer")
+local TitleBar = require("ui/widget/titlebar")
 local UIManager = require("ui/uimanager")
+local Geom = require("ui/geometry")
 local VerticalGroup = require("ui/widget/verticalgroup")
+local VerticalSpan = require("ui/widget/verticalspan")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local Widget = require("ui/widget/widget")
 local Size = require("ui/size")
@@ -20,8 +24,12 @@ local Screen = require("device").screen
 --]]
 
 local NotesWidget = Widget:new {
-  x = 10,
-  y = 10,
+  dimen = Geom:new { w = 0, h = 0 },
+  x = 0,
+  y = 0,
+  tx = 0,
+  ty = 0,
+
 }
 
 function NotesWidget:init()
@@ -29,22 +37,26 @@ function NotesWidget:init()
 end
 
 function NotesWidget:getSize()
-  local size = Screen:getSize()
-  return {
-    w = size.w - 100,
-    h = size.h - 100,
-  }
+  local size = {}
+  size.w = 400;
+  size.h = 400;
+  return size;
 end
 
 function NotesWidget:paintTo(bb, x, y)
-  logger.dbg("NotesWidget:paintTo");
+  logger.dbg("NotesWidget:paintTo", x, y);
   local black = Blitbuffer.COLOR_BLACK
-  bb:paintRect(self.x, self.y, 2, 2, black)
+  -- logger.dbg("Position", self.parent);
+  self.x = x;
+  self.y = y;
+  self.dimen.x = x;
+  self.dimen.y = y;
+  bb:paintRect(self.tx, self.ty, 10, 10, black)
+  logger.dbg("NotesWidget:paintTo dimen: ", self.dimen);
 end
 
 function NotesWidget:handleEvent(event)
   logger.dbg("NotesWidget:handleEvent");
-  -- logger.info(event["args"])
   if event.args == nil then
     return false
   end
@@ -56,40 +68,96 @@ function NotesWidget:handleEvent(event)
     return false
   end
 
-  self.x = pos.x;
-  self.y = pos.y;
-  UIManager:show(self)
+  self.tx = pos.x;
+  self.ty = pos.y;
+
+  -- local dimen = NotesWidget.parent:getSize();
+  -- dimen.x = self.x
+  -- dimen.y = self.y
+  -- logger.dbg("dimen", dimen);
+
+  -- UIManager:show(NotesWidget);
+  -- UIManager:setDirty("ui", dimen);
+  UIManager:setDirty(self, function()
+    return "ui", self.dimen
+  end);
 
   return true
 end
 
-local frame = FrameContainer:new {
-  radius = Size.radius.window,
-  bordersize = Size.border.window,
-  padding = 0,
-  margin = 50,
-  background = Blitbuffer.COLOR_WHITE,
-  VerticalGroup:new {
-    [1] = NotesWidget
-  }
-}
-
-local Notes = WidgetContainer:new {
-  name = "notes",
-  is_doc_only = false,
-  scale_factor = 1,
+local Notes = FocusManager:new {
+  is_always_active = true,
+  modal = true,
+  stop_events_propagation = true,
+  keyboard_state = nil,
+  width = nil,
 }
 
 function Notes:init()
   logger.dbg("Notes:init");
+
+  self.layout = {}
+  self.width = self.width or math.floor(math.min(Screen:getWidth(), Screen:getHeight()) * 0.8)
+  self.name = "Notes";
+  self.title_bar = TitleBar:new {
+    width = self.width,
+    with_bottom_line = true,
+    title = _("Notes"),
+    bottom_v_padding = 0,
+    show_parent = self,
+    right_icon = "close",
+    close_callback = function()
+      UIManager:close(self.dialog_frame);
+      UIManager:close(NotesWidget);
+      UIManager:close(self);
+      UIManager:setDirty("ui", "full");
+    end
+
+  }
+
+
+  self.dialog_frame = FrameContainer:new {
+    radius = Size.radius.window,
+    bordersize = Size.border.window,
+    padding = 0,
+    margin = 10,
+    background = Blitbuffer.COLOR_WHITE,
+    VerticalGroup:new {
+      align = "center",
+      self.title_bar,
+      VerticalSpan:new {
+        width = Size.span.vertical_large * 2,
+      },
+      NotesWidget,
+    }
+  }
+
+  NotesWidget.parent = self.dialog_frame[1]
+  logger.dbg("VerticalGroup ", NotesWidget.parent);
+  NotesWidget.bb = Blitbuffer.new(NotesWidget.parent:getSize().w, NotesWidget.parent:getSize().h);
+  -- logger.dbg("NotesWidget.bb", NotesWidget.bb);
+  -- NotesWidget.dimen = Geom:new {
+  --   x = self.parent.getSize().x + self.dialog_frame.margin.w,
+  --   y = self.parent.dimen.y + self.title_bar.dimen.y,
+  --   w = self.parent.dimen.w * 0.8,
+  --   h = self.parent.dimen.h - self.title_bar.dimen.h,
+  -- }
+  NotesWidget.dimen = Geom:new { w = NotesWidget.parent:getSize().w, h = NotesWidget.parent:getSize().h }
+
   self:onDispatcherRegisterActions()
 
   self.ui.menu:registerToMainMenu(self)
+  logger.dbg("***********************Notes:init ***********************************");
+end
+
+function Notes:onClose()
+  logger.dbg("Notes:onClose");
 end
 
 function Notes:onNotesStart()
   logger.dbg("Notes starting");
-  UIManager:show(frame);
+  UIManager:show(self.dialog_frame);
+  UIManager:show(NotesWidget);
 end
 
 function Notes:onDispatcherRegisterActions()
