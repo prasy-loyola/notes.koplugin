@@ -5,7 +5,6 @@ This plugin provides a Handwritten notes
 local logger = require("logger")
 local Blitbuffer = require("ffi/blitbuffer")
 local Dispatcher = require("dispatcher")
-local FocusManager = require("ui/widget/focusmanager")
 local FrameContainer = require("ui/widget/container/framecontainer")
 local TitleBar = require("ui/widget/titlebar")
 local UIManager = require("ui/uimanager")
@@ -28,8 +27,7 @@ local NotesWidget = Widget:new {
     w = Screen:getSize().w * 0.95,
     h = Screen:getSize().h * 0.9,
   },
-  points = {}
-
+  points = {},
 }
 
 function NotesWidget:init()
