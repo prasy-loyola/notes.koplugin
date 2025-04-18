@@ -82,8 +82,8 @@ function NotesWidget:handleEvent(event)
   logger.dbg("Touch: tx", tx, "ty", ty);
   self.bb:paintRect(tx, ty, 10, 10, Blitbuffer.COLOR_WHITE)
 
-  UIManager:setDirty(self.parent2, function()
-    return "ui", self.parent2.dimen
+  UIManager:setDirty(self, function()
+    return "ui", self.dimen
   end);
 
   return true
@@ -114,7 +114,7 @@ function Notes:init()
     right_icon = "close",
     close_callback = function()
       UIManager:close(self.dialog_frame);
-      -- UIManager:setDirty("ui", self.dialog_frame.dimen);
+      UIManager:close(NotesWidget);
     end
   }
   self.dialog_frame = FrameContainer:new {
@@ -144,6 +144,7 @@ end
 
 function Notes:onNotesStart()
   logger.dbg("Notes starting");
+  UIManager:show(NotesWidget);
   UIManager:show(self.dialog_frame);
 end
 
