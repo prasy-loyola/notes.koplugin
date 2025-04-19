@@ -6,6 +6,7 @@ local logger = require("logger")
 local Blitbuffer = require("ffi/blitbuffer")
 local Dispatcher = require("dispatcher")
 local FrameContainer = require("ui/widget/container/framecontainer")
+local Input = require("device/input")
 local TitleBar = require("ui/widget/titlebar")
 local UIManager = require("ui/uimanager")
 local VerticalGroup = require("ui/widget/verticalgroup")
@@ -41,8 +42,8 @@ function Notes:init()
     show_parent = self,
     right_icon = "close",
     close_callback = function()
-      UIManager:close(self.dialog_frame);
       UIManager:close(NotesWidget);
+      UIManager:close(self.dialog_frame);
     end
   }
   self.dialog_frame = FrameContainer:new {
@@ -72,6 +73,10 @@ end
 
 function Notes:onNotesStart()
   logger.dbg("Notes starting");
+  Input:registerEventAdjustHook(function(self, hook, hook_params)
+      NotesWidget:kernelEventListener(hook, hook_params)
+    end,
+    { name = "Hook Params" });
   UIManager:show(NotesWidget);
   UIManager:show(self.dialog_frame);
 end
