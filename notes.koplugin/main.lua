@@ -44,6 +44,7 @@ function Notes:init()
     close_callback = function()
       UIManager:close(NotesWidget);
       UIManager:close(self.dialog_frame);
+      UIManager:setDirty("ui", "full");
     end
   }
   self.dialog_frame = FrameContainer:new {
@@ -69,6 +70,7 @@ end
 
 function Notes:onClose()
   logger.dbg("Notes:onClose");
+  
 end
 
 function Notes:onNotesStart()
