@@ -42,8 +42,8 @@ local Screen = require("device").screen
 ---@type NotesWidget
 local NotesWidget = Widget:new {
   dimen = Geom:new {
-    w = Screen:getSize().w * 0.95,
-    h = Screen:getSize().h * 0.9,
+    w = Screen:getSize().w * 0.95 ,
+    h = Screen:getSize().h * 0.95,
   },
   touchEvents = {},
   brushSize = 3,
@@ -84,9 +84,9 @@ function NotesWidget:interPolate(p1, p2)
   if not p1 or not p2 then
     return
   end
+  self.bb:paintRectRGB32(p1.x, p1.y, self.brushSize, self.brushSize, self.penColor);
+  self.bb:paintRectRGB32(p2.x, p2.y, self.brushSize, self.brushSize, self.penColor);
   if p1.x == p2.x and p1.y == p2.y then
-    -- self.bb:paintRect(p1.x, p1.y, self.brushSize, self.brushSize, self.penColor);
-    self.bb:paintRectRGB32(p1.x, p1.y, self.brushSize, self.brushSize, self.penColor);
     return
   end
   local x0 = p1.x < p2.x and p1.x or p2.x
@@ -96,11 +96,10 @@ function NotesWidget:interPolate(p1, p2)
 
   local xDiff = x1 - x0
 
-  for x = x0, x1, 1 do
+  for x = x0 + 1, x1, 1 do
     local y = math.floor(((y0 * (x1 - x)) + (y1 * (x - x0))) / xDiff)
     if x == 0 or y == 0 then return end
     self.bb:paintRectRGB32(x, y, self.brushSize, self.brushSize, self.penColor);
-    -- self.bb:paintRect(x, y, self.brushSize, self.brushSize, self.penColor);
   end
 
   x0 = p1.y < p2.y and p1.x or p2.x
@@ -109,11 +108,10 @@ function NotesWidget:interPolate(p1, p2)
   y1 = p1.y > p2.y and p1.y or p2.y
 
   local yDiff = y1 - y0
-  for y = y0, y1, 1 do
+  for y = y0 + 1, y1, 1 do
     local x = math.floor(((x0 * (y1 - y)) + (x1 * (y - y0))) / yDiff)
     if x == 0 or y == 0 then return end
     self.bb:paintRectRGB32(x, y, self.brushSize, self.brushSize, self.penColor);
-    -- self.bb:paintRect(x, y, self.brushSize, self.brushSize, self.penColor);
   end
 end
 
@@ -221,7 +219,6 @@ function NotesWidget:paintToBB()
         self:interPolate(prevTEvent, tEvent);
       else
         self.bb:paintRectRGB32(tEvent.x, tEvent.y, self.brushSize, self.brushSize, self.penColor);
-        -- self.bb:paintRect(tEvent.x, tEvent.y, self.brushSize, self.brushSize, self.penColor);
       end
     end
   end
