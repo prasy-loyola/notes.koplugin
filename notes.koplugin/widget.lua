@@ -49,7 +49,7 @@ local NotesWidget = Widget:new {
   brushSize = 3,
   penColor = Blitbuffer.colorFromName("red"),
   strokeDelay = 10 * 1000,
-  strokeTime = 100 * 1000,
+  strokeTime = 60 * 1000,
   slots = {},
   current_slot = nil,
 }
@@ -129,6 +129,7 @@ local mtCodes = {
   ABS_MT_SLOT = 47,
   ABS_MT_POSITION_X = 53,
   ABS_MT_POSITION_Y = 54,
+  ABS_MT_TOOL_TYPE = 55,
   ABS_MT_TRACKING_ID = 57,
 }
 
@@ -146,41 +147,37 @@ local mtCodes = {
 ---As we want to get all the touch events to not lose data in the gestureDetector
 ---@param event KernelEvent
 ---@param hook_params any
-function NotesWidget:kernelEventListener(event, hook_params)
+function NotesWidget:kernelEventListener(input, event, hook_params)
   if not self.slots then
     self.slots = {}
   end
   if event.type ~= events.EV_SYN and event.type ~= events.EV_ABS then
-    logger.dbg("NotesWidget:kernelEventListener ignoring event type:", event.type);
     return
   end
 
   if event.type == events.EV_ABS then
-    if event.code == mtCodes.ABS_MT_SLOT then
+    if event.code == mtCodes.ABS_MT_SLOT or event.code == mtCodes.ABS_MT_TRACKING_ID then
       self.slots[event.value] = {}
       self.current_slot = self.slots[event.value]
-      logger.warn("Set slots ", slots, "currentSlot", self.current_slot)
-    elseif event.code == mtCodes.ABS_MT_TRACKING_ID then
-      if not self.current_slot then
-        logger.warn("Current Slot is nil but got ABS_MT_TRACKING_ID")
-      else
-        self.current_slot.trackingId = event.value
-      end
     elseif event.code == mtCodes.ABS_MT_POSITION_X then
-      if not self.current_slot then
-        logger.warn("Current Slot is nil but got ABS_MT_POSITION_X")
-      else
+      if self.current_slot then
         self.current_slot.x = event.value
       end
     elseif event.code == mtCodes.ABS_MT_POSITION_Y then
-      if not self.current_slot then
-        logger.warn("Current Slot is nil but got ABS_MT_POSITION_Y")
-      else
+      if self.current_slot then
         self.current_slot.y = event.value
+      end
+    elseif event.code == mtCodes.ABS_MT_TOOL_TYPE then
+      if self.current_slot then
+        self.current_slot.toolType = event.value
+      end
+    elseif event.code == input.pressure_event and event.value == 0 then
+      if self.current_slot and self.current_slot.toolType and self.current_slot.toolType == 1 then
+        self.current_slot = nil
       end
     end
   elseif event.type == events.EV_SYN then
-    if event.code == mtCodes.SYN_REPORT and self.current_slot then
+    if event.code == mtCodes.SYN_REPORT and self.current_slot and self.current_slot.x and self.current_slot.y then
       local tx = self.current_slot.x - self.dimen.x;
       local ty = self.current_slot.y - self.dimen.y;
       --- Boundary check
@@ -188,9 +185,24 @@ function NotesWidget:kernelEventListener(event, hook_params)
         return;
       end
       table.insert(self.touchEvents, { x = tx, y = ty, time = (event.time.sec * 1000000 + event.time.usec) })
-      logger.dbg("added to touchEvents", touchEvents);
-      self:paintToBB();
+      -- self:paintToBB(); -- reduce the number of redraws
+      if #self.touchEvents < 2 then
+        self.bb:paintRectRGB32(tx, ty, self.brushSize, self.brushSize, self.penColor);
+      else
+        local prevTEvent = self.touchEvents[#self.touchEvents - 1]
+        local tEvent = self.touchEvents[#self.touchEvents]
+
+        if tEvent.time - prevTEvent.time < self.strokeTime then
+          self:interPolate(prevTEvent, tEvent);
+        else
+          self.bb:paintRectRGB32(tEvent.x, tEvent.y, self.brushSize, self.brushSize, self.penColor);
+        end
+      end
+      UIManager:setDirty(self, function()
+        return "ui", self.dimen
+      end);
       self.current_slot = nil
+      self.slots = {}
     end
   end
 end
