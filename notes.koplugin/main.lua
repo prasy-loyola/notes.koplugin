@@ -30,12 +30,13 @@ local Notes = WidgetContainer:new {
 
 function Notes:init()
   logger.dbg("Notes:init");
+  self.margin = 10;
 
   self.layout = {}
-  self.width = self.width or math.floor(math.min(Screen:getWidth(), Screen:getHeight()) * 0.9)
+  self.width = self.width or math.floor(math.min(Screen:getWidth(), Screen:getHeight()) - self.margin * 2)
   self.name = "Notes";
   self.title_bar = TitleBar:new {
-    width = self.width,
+    width = self.width - Size.border.window * 4,
     with_bottom_line = true,
     title = _("Notes"),
     bottom_v_padding = 0,
@@ -50,8 +51,9 @@ function Notes:init()
   self.dialog_frame = FrameContainer:new {
     radius = Size.radius.window,
     bordersize = Size.border.window,
+    width = self.width + Size.border.window * 2,
     padding = 0,
-    margin = 0,
+    margin = self.margin,
     background = Blitbuffer.COLOR_WHITE,
     VerticalGroup:new {
       align = "center",
