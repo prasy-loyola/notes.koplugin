@@ -36,7 +36,7 @@ function Notes:init()
   self.name = "Notes";
   self.title_bar = TitleBar:new {
     width = self.width,
-    with_bottom_line = false,
+    with_bottom_line = true,
     title = _("Notes"),
     bottom_v_padding = 0,
     show_parent = self,

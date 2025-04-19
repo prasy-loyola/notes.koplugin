@@ -41,14 +41,13 @@ local Screen = require("device").screen
 
 ---@type NotesWidget
 local NotesWidget = Widget:new {
-  -- dimen = Geom:new { w = 0, h = 0 },
   dimen = Geom:new {
     w = Screen:getSize().w * 0.95,
     h = Screen:getSize().h * 0.9,
   },
   touchEvents = {},
   brushSize = 3,
-  penColor = Blitbuffer.COLOR_WHITE,
+  penColor = Blitbuffer.colorFromName("red"),
   strokeDelay = 10 * 1000,
   strokeTime = 100 * 1000,
   slots = {},
@@ -70,7 +69,8 @@ function NotesWidget:paintTo(bb, x, y)
     return
   end
   if not self.bb then
-    self.bb = Blitbuffer.new(NotesWidget.dimen.w, NotesWidget.dimen.h);
+    self.bb = Blitbuffer.new(self.dimen.w, self.dimen.h, Blitbuffer.TYPE_BBRGB32);
+    self.bb:paintRectRGB32(0, 0, self.dimen.w, self.dimen.h, Blitbuffer.colorFromString("#ffffff"));
   end
   logger.dbg("NotesWidget:paintTo", x, y);
   bb:blitFrom(self.bb, x, y, 0, 0, self.dimen.w, self.dimen.h)
@@ -85,7 +85,8 @@ function NotesWidget:interPolate(p1, p2)
     return
   end
   if p1.x == p2.x and p1.y == p2.y then
-    self.bb:paintRect(p1.x, p1.y, self.brushSize, self.brushSize, self.penColor);
+    -- self.bb:paintRect(p1.x, p1.y, self.brushSize, self.brushSize, self.penColor);
+    self.bb:paintRectRGB32(p1.x, p1.y, self.brushSize, self.brushSize, self.penColor);
     return
   end
   local x0 = p1.x < p2.x and p1.x or p2.x
@@ -98,7 +99,8 @@ function NotesWidget:interPolate(p1, p2)
   for x = x0, x1, 1 do
     local y = math.floor(((y0 * (x1 - x)) + (y1 * (x - x0))) / xDiff)
     if x == 0 or y == 0 then return end
-    self.bb:paintRect(x, y, self.brushSize, self.brushSize, self.penColor);
+    self.bb:paintRectRGB32(x, y, self.brushSize, self.brushSize, self.penColor);
+    -- self.bb:paintRect(x, y, self.brushSize, self.brushSize, self.penColor);
   end
 
   x0 = p1.y < p2.y and p1.x or p2.x
@@ -110,7 +112,8 @@ function NotesWidget:interPolate(p1, p2)
   for y = y0, y1, 1 do
     local x = math.floor(((x0 * (y1 - y)) + (x1 * (y - y0))) / yDiff)
     if x == 0 or y == 0 then return end
-    self.bb:paintRect(x, y, self.brushSize, self.brushSize, self.penColor);
+    self.bb:paintRectRGB32(x, y, self.brushSize, self.brushSize, self.penColor);
+    -- self.bb:paintRect(x, y, self.brushSize, self.brushSize, self.penColor);
   end
 end
 
@@ -205,7 +208,8 @@ function NotesWidget:paintToBB()
       if tEvent.time - prevTEvent.time < self.strokeTime then
         self:interPolate(prevTEvent, tEvent);
       else
-        self.bb:paintRect(tEvent.x, tEvent.y, self.brushSize, self.brushSize, self.penColor);
+        self.bb:paintRectRGB32(tEvent.x, tEvent.y, self.brushSize, self.brushSize, self.penColor);
+        -- self.bb:paintRect(tEvent.x, tEvent.y, self.brushSize, self.brushSize, self.penColor);
       end
     end
   end
