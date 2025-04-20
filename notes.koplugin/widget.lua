@@ -108,11 +108,9 @@ end
 ---@param tEvent TouchEvent
 ---@param hook_params any
 function NotesWidget:touchEventListener(tEvent, hook_params)
-  logger.dbg("NotesWidget: got touchEvent", tEvent);
   if not self.isRunning or not tEvent then
     return
   end
-  logger.dbg("NotesWidget: processing touchEvent", tEvent);
   if tEvent.type == InputListener.TouchEventType.ERASER_DOWN then
     self.penColor = WHITE
     self.brushSize = ERASER_BRUSH_SIZE

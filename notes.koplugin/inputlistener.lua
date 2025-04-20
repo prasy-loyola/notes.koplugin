@@ -46,10 +46,25 @@ local TouchEventType = {
   ERASER_HOVER = 5,
 }
 
+TouchEventType.PrintNames = {
+  [TouchEventType.PEN_DOWN] = "PEN_DOWN",
+  [TouchEventType.PEN_UP] = "PEN_UP",
+  [TouchEventType.PEN_HOVER] = "PEN_HOVER",
+  [TouchEventType.ERASER_DOWN] = "ERASER_DOWN",
+  [TouchEventType.ERASER_UP] = "ERASER_UP",
+  [TouchEventType.ERASER_HOVER] = "ERASER_HOVER",
+}
+
+
 ---@enum ToolType
 local ToolType = {
   FINGER = 0,
   PEN = 1,
+}
+
+ToolType.PrintNames = {
+  [ToolType.FINGER] = "FINGER",
+  [ToolType.PEN] = "PEN",
 }
 
 
@@ -59,7 +74,23 @@ local ToolType = {
 ---@field time integer
 ---@field type TouchEventType
 ---@field toolType ToolType
+local TouchEvent = {}
 
+function TouchEvent:__tostring()
+  return "ToolType:" ..
+      ToolType.PrintNames[self.toolType] ..
+      " Type:" .. TouchEventType.PrintNames[self.type] ..
+      " x:" .. (self.x and tostring(self.x) or "nil") ..
+      " y:" .. (self.y and tostring(self.y) or "nil") ..
+      " time:" .. tostring(self.time)
+end
+
+---@return TouchEvent
+function TouchEvent:new(o)
+  setmetatable(o, self)
+  self.__index = self
+  return o
+end
 
 ---@param touchEvent TouchEvent
 ---@param hook_params any
@@ -103,12 +134,12 @@ function InputListener:createTouchEvent(slot, time)
   end
 
   ---@type TouchEvent
-  return {
+  return TouchEvent:new {
     x = slot.x,
     y = slot.y,
     time = (time.sec * 1000000) + time.usec,
     type = touchEventType,
-    toolType = slot.toolType
+    toolType = slot.toolType or ToolType.FINGER
   }
 end
 
@@ -132,13 +163,12 @@ function InputListener:eventAdjustmentHook(input, event, hook_params)
 
   if event.type == events.EV_ABS then
     if event.code == mtCodes.ABS_MT_SLOT or event.code == mtCodes.ABS_MT_TRACKING_ID then
-      logger.dbg("InputListener: code", event.code, "value", event.value, self.current_slot);
       if event.value == -1 and self.current_slot then
         local touchEvent = self:createTouchEvent(self.current_slot, event.time);
         if not (touchEvent.x and touchEvent.y and touchEvent.time and touchEvent.type) then
-          logger.dbg("InputListener: Incomplete touchEvent", touchEvent, self.current_slot)
+          logger.dbg("Incomplete touchEvent =>" .. tostring(touchEvent), self.current_slot)
         else
-          logger.dbg("InputListener: TouchEvent", touchEvent);
+          logger.dbg("TouchEvent: " .. tostring(touchEvent));
           self.listener(touchEvent, hook_params)
         end
         return
@@ -174,9 +204,9 @@ function InputListener:eventAdjustmentHook(input, event, hook_params)
 
       local touchEvent = self:createTouchEvent(self.current_slot, event.time);
       if not (touchEvent.x and touchEvent.y and touchEvent.time and touchEvent.type) then
-        logger.dbg("InputListener: Incomplete touchEvent", touchEvent, self.current_slot)
+        logger.dbg("Incomplete touchEvent =>" .. tostring(touchEvent), self.current_slot)
       else
-        logger.dbg("InputListener: TouchEvent", touchEvent);
+        logger.dbg("TouchEvent: " .. tostring(touchEvent));
         self.listener(touchEvent, hook_params)
       end
 
