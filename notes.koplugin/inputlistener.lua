@@ -40,8 +40,10 @@ local mtCodes = {
 local TouchEventType = {
   PEN_DOWN = 0,
   PEN_UP = 1,
-  ERASER_DOWN = 2,
-  ERASER_UP = 3,
+  PEN_HOVER = 2,
+  ERASER_DOWN = 3,
+  ERASER_UP = 4,
+  ERASER_HOVER = 5,
 }
 
 ---@enum ToolType
@@ -80,6 +82,36 @@ function InputListener:setListener(listener)
   self.listener = listener
 end
 
+---@param slot Slot
+---@return TouchEvent
+function InputListener:createTouchEvent(slot, time)
+  if not slot then
+    return {}
+  end
+  local touchEventType = TouchEventType.PEN_DOWN;
+  if slot.isEraser then
+    if slot.value == 0 then
+      touchEventType = TouchEventType.ERASER_UP
+    elseif slot.value == 1 then
+      touchEventType = TouchEventType.ERASER_DOWN
+    elseif slot.value == -1 then
+      touchEventType = TouchEventType.ERASER_HOVER
+    end
+  end
+  if slot.value == -1 then
+    touchEventType = TouchEventType.PEN_HOVER
+  end
+
+  ---@type TouchEvent
+  return {
+    x = slot.x,
+    y = slot.y,
+    time = (time.sec * 1000000) + time.usec,
+    type = touchEventType,
+    toolType = slot.toolType
+  }
+end
+
 ---An event listener to listen to kernel events directly before being fed into gestureDetector
 ---As we want to get all the touch events to not lose data in the gestureDetector
 ---@param event KernelEvent
@@ -100,11 +132,20 @@ function InputListener:eventAdjustmentHook(input, event, hook_params)
 
   if event.type == events.EV_ABS then
     if event.code == mtCodes.ABS_MT_SLOT or event.code == mtCodes.ABS_MT_TRACKING_ID then
+      logger.dbg("InputListener: code", event.code, "value", event.value, self.current_slot);
       if event.value == -1 and self.current_slot then
-        self.current_slot.value = event.value
+        local touchEvent = self:createTouchEvent(self.current_slot, event.time);
+        if not (touchEvent.x and touchEvent.y and touchEvent.time and touchEvent.type) then
+          logger.dbg("InputListener: Incomplete touchEvent", touchEvent, self.current_slot)
+        else
+          logger.dbg("InputListener: TouchEvent", touchEvent);
+          self.listener(touchEvent, hook_params)
+        end
         return
       end
-      self.slots[event.value] = {}
+      if not self.slots[event.value] then
+        self.slots[event.value] = {}
+      end
       self.current_slot = self.slots[event.value]
       self.current_slot["id"] = event.value
     elseif event.code == mtCodes.ABS_MT_POSITION_X then
@@ -122,45 +163,25 @@ function InputListener:eventAdjustmentHook(input, event, hook_params)
     elseif event.code == input.pressure_event and event.value == 0 then
       -- ignoring hover events from stylus pens
       if self.current_slot and self.current_slot.toolType and self.current_slot.toolType == 1 then
-        self.current_slot = nil
-        self.penHovering = true
+        self.current_slot.value = -1
       end
     end
   elseif event.type == events.EV_SYN then
-    if event.code == mtCodes.SYN_REPORT and self.current_slot then
-      local touchEventType = TouchEventType.PEN_DOWN;
-      if self.current_slot.isEraser then
-        if self.current_slot.value == 0 then
-          touchEventType = TouchEventType.ERASER_UP
-        elseif self.current_slot.value == 0 then
-          touchEventType = TouchEventType.ERASER_DOWN
-        end
-      end
-
-      if self.current_slot.toolType == ToolType.FINGER and self.penHovering then
-        -- Not seeing this log for some reason but seems to work look at it later
-        logger.dbg("Ignoring finger event as pen is hovering", self.current_slot);
+    if event.code == mtCodes.SYN_REPORT then
+      if not self.current_slot then
         return
       end
-      self.penHovering = false
 
-      ---@type TouchEvent
-      local touchEvent = {
-        x = self.current_slot.x,
-        y = self.current_slot.y,
-        time = (event.time.sec * 1000000 + event.time.usec),
-        type = touchEventType,
-        toolType = self.current_slot.toolType
-      };
-
+      local touchEvent = self:createTouchEvent(self.current_slot, event.time);
       if not (touchEvent.x and touchEvent.y and touchEvent.time and touchEvent.type) then
-        logger.dbg("InputListener: Incomplete touchEvent", touchEvent)
-        return
+        logger.dbg("InputListener: Incomplete touchEvent", touchEvent, self.current_slot)
+      else
+        logger.dbg("InputListener: TouchEvent", touchEvent);
+        self.listener(touchEvent, hook_params)
       end
 
-      logger.dbg("InputListener: TouchEvent", touchEvent);
-      self.listener(touchEvent, hook_params)
       self.slots[self.current_slot["id"]] = nil
+      self.contacts = {}
       self.current_slot = nil
     end
   end

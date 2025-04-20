@@ -119,6 +119,9 @@ function NotesWidget:touchEventListener(tEvent, hook_params)
   elseif tEvent.type == InputListener.TouchEventType.ERASER_UP then
     self.penColor = RED
     self.brushSize = PEN_BRUSH_SIZE
+  elseif tEvent.type == InputListener.TouchEventType.PEN_HOVER or
+      tEvent.type == InputListener.TouchEventType.ERASER_HOVER then
+    return
   end
 
   local tx = tEvent.x - self.dimen.x;
