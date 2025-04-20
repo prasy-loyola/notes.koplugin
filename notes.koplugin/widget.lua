@@ -46,6 +46,7 @@ local ERASER_BRUSH_SIZE = PEN_BRUSH_SIZE * 3
 ---@field kernelEventListener function
 ---@field slots Slot[]
 ---@field current_slot Slot
+---@field isRunning boolean
 local NotesWidget = Widget:new {
   dimen = Geom:new {
     w = Screen:getSize().w * 0.95,
@@ -149,11 +150,16 @@ local mtCodes = {
 ---@field time Time
 ---@field value integer
 
+
+
 ---An event listener to listen to kernel events directly before being fed into gestureDetector
 ---As we want to get all the touch events to not lose data in the gestureDetector
 ---@param event KernelEvent
 ---@param hook_params any
 function NotesWidget:kernelEventListener(input, event, hook_params)
+  if not self.isRunning then
+    return
+  end
   if not self.slots then
     self.slots = {}
   end

@@ -16,7 +16,7 @@ local _ = require("gettext")
 local Screen = require("device").screen
 
 local NotesWidget = require("./widget")
-
+local InputListener = require("./inputlistener")
 
 local Notes = WidgetContainer:new {
   name = "notes",
@@ -43,6 +43,8 @@ function Notes:init()
     show_parent = self,
     right_icon = "close",
     close_callback = function()
+      self.isRunning = false
+      NotesWidget.isRunning = false
       UIManager:close(NotesWidget);
       UIManager:close(self.dialog_frame);
       UIManager:setDirty("ui", "full");
@@ -67,20 +69,35 @@ function Notes:init()
   self:onDispatcherRegisterActions()
 
   self.ui.menu:registerToMainMenu(self)
-  logger.dbg("***********************Notes:init ***********************************");
-end
 
-function Notes:onClose()
-  logger.dbg("Notes:onClose");
-  
-end
+  Input:registerEventAdjustHook(
+    function(input, event, hook_params)
+      InputListener:eventAdjustmentHook(input, event, hook_params)
+    end,
+    { name = "InputListener Hook Params" });
 
-function Notes:onNotesStart()
+  InputListener:setListener(function(touchEvent, hook_params)
+    if self.isRunning then
+      logger.dbg("Notes: Got Touch Event ", touchEvent, "hook_params", hook_params);
+    end
+  end);
   Input:registerEventAdjustHook(function(input, event, hook_params)
       NotesWidget:kernelEventListener(input, event, hook_params)
     end,
     { name = "Hook Params" });
-  logger.dbg("Notes:onNotesStart registerd EventAdjustHook");
+  logger.dbg("Notes:init registerd EventAdjustHook");
+
+  logger.dbg("***********************Notes:init ***********************************");
+end
+
+function Notes:onClose()
+  self.isRunning = false
+  logger.dbg("Notes:onClose");
+end
+
+function Notes:onNotesStart()
+  self.isRunning = true
+  NotesWidget.isRunning = true
   UIManager:show(NotesWidget);
   UIManager:show(self.dialog_frame);
   UIManager:setDirty("ui", "full");
