@@ -13,8 +13,8 @@ local Screen = require("device").screen
 ---@class Slot
 ---@field x integer
 ---@field y integer
----@field trackingId integer
 ---@field time integer
+---@field toolType integer
 
 ---@class TouchEvent
 ---@field x integer
@@ -26,7 +26,14 @@ local Screen = require("device").screen
 ---TODO: find a way to document functions in Ldoc
 ---@class BlitBuffer
 ---@field paintRect function
+---@field paintRectRGB32 function
 
+
+
+local RED = Blitbuffer.colorFromName("red")
+local WHITE = Blitbuffer.colorFromString("#ffffff")
+local PEN_BRUSH_SIZE = 3
+local ERASER_BRUSH_SIZE = PEN_BRUSH_SIZE * 3
 ---@class NotesWidget
 ---@field dimen any
 ---@field touchEvents TouchEvent[]
@@ -39,13 +46,6 @@ local Screen = require("device").screen
 ---@field kernelEventListener function
 ---@field slots Slot[]
 ---@field current_slot Slot
-
-
-local RED = Blitbuffer.colorFromName("red")
-local WHITE = Blitbuffer.colorFromString("#ffffff")
-local PEN_BRUSH_SIZE = 3
-local ERASER_BRUSH_SIZE = PEN_BRUSH_SIZE * 3
----@type NotesWidget
 local NotesWidget = Widget:new {
   dimen = Geom:new {
     w = Screen:getSize().w * 0.95,
