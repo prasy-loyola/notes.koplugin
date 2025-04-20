@@ -8,27 +8,12 @@ local Geom = require("ui/geometry")
 local UIManager = require("ui/uimanager")
 local Widget = require("ui/widget/widget")
 local Screen = require("device").screen
+local InputListener = require("./inputlistener")
+require("./inputlistener")
 
-
----@class Slot
----@field x integer
----@field y integer
----@field time integer
----@field toolType integer
-
----@class TouchEvent
----@field x integer
----@field y integer
----@field time integer
----@field ges string
-
-
----TODO: find a way to document functions in Ldoc
 ---@class BlitBuffer
----@field paintRect function
----@field paintRectRGB32 function
-
-
+---@field paintRect fun(x: integer, y: integer, w: integer, h:integer, value: any, setter: any)
+---@field paintRectRGB32 fun(x: integer, y: integer, w: integer, h:integer, value: any, setter: any)
 
 local RED = Blitbuffer.colorFromName("red")
 local WHITE = Blitbuffer.colorFromString("#ffffff")
@@ -44,8 +29,6 @@ local ERASER_BRUSH_SIZE = PEN_BRUSH_SIZE * 3
 ---@field strokeTime integer
 ---@field strokeDelay integer
 ---@field kernelEventListener function
----@field slots Slot[]
----@field current_slot Slot
 ---@field isRunning boolean
 local NotesWidget = Widget:new {
   dimen = Geom:new {
@@ -58,8 +41,6 @@ local NotesWidget = Widget:new {
   penColor = RED,
   strokeDelay = 10 * 1000,
   strokeTime = 60 * 1000,
-  slots = {},
-  current_slot = nil,
 }
 
 function NotesWidget:init()
@@ -123,112 +104,48 @@ function NotesWidget:interPolate(p1, p2)
   end
 end
 
----@enum EventType
-local events = {
-  EV_SYN = 0,
-  EV_ABS = 3,
-}
-
----@enum MultiTouchCodes
-local mtCodes = {
-  SYN_REPORT = 0,
-  ABS_MT_SLOT = 47,
-  ABS_MT_POSITION_X = 53,
-  ABS_MT_POSITION_Y = 54,
-  ABS_MT_TOOL_TYPE = 55,
-  ABS_MT_TRACKING_ID = 57,
-  Eraser = 331,
-}
-
----@class Time
----@field sec integer seconds
----@field usec integer microseconds
-
----@class KernelEvent
----@field type EventType
----@field code MultiTouchCodes
----@field time Time
----@field value integer
-
-
-
----An event listener to listen to kernel events directly before being fed into gestureDetector
----As we want to get all the touch events to not lose data in the gestureDetector
----@param event KernelEvent
+---comment
+---@param tEvent TouchEvent
 ---@param hook_params any
-function NotesWidget:kernelEventListener(input, event, hook_params)
-  if not self.isRunning then
+function NotesWidget:touchEventListener(tEvent, hook_params)
+  logger.dbg("NotesWidget: got touchEvent", tEvent);
+  if not self.isRunning or not tEvent then
     return
   end
-  if not self.slots then
-    self.slots = {}
+  logger.dbg("NotesWidget: processing touchEvent", tEvent);
+  if tEvent.type == InputListener.TouchEventType.ERASER_DOWN then
+    self.penColor = WHITE
+    self.brushSize = ERASER_BRUSH_SIZE
+  elseif tEvent.type == InputListener.TouchEventType.ERASER_UP then
+    self.penColor = RED
+    self.brushSize = PEN_BRUSH_SIZE
   end
 
-  if event.code == mtCodes.Eraser then
-    logger.dbg("Got an eraser event", event.code, event.value);
-    if event.value == 0 then
-      self.penColor = RED
-      self.brushSize = PEN_BRUSH_SIZE
-    elseif event.value == 1 then
-      self.penColor = WHITE
-      self.brushSize = ERASER_BRUSH_SIZE
+  local tx = tEvent.x - self.dimen.x;
+  local ty = tEvent.y - self.dimen.y;
+  --- Boundary check
+  if tx < 0 or tx > self.dimen.w or tx < 0 or ty > self.dimen.h then
+    return;
+  end
+  tEvent.x = tx
+  tEvent.y = ty
+  table.insert(self.touchEvents, tEvent)
+  -- self:paintToBB(); -- reduce the number of redraws
+  if #self.touchEvents < 2 then
+    self.bb:paintRectRGB32(tx, ty, self.brushSize, self.brushSize, self.penColor);
+  else
+    local prevTEvent = self.touchEvents[#self.touchEvents - 1]
+    local tEvent = self.touchEvents[#self.touchEvents]
+
+    if tEvent.time - prevTEvent.time < self.strokeTime and tEvent.toolType == prevTEvent.toolType then
+      self:interPolate(prevTEvent, tEvent);
+    else
+      self.bb:paintRectRGB32(tEvent.x, tEvent.y, self.brushSize, self.brushSize, self.penColor);
     end
   end
-
-  if event.type ~= events.EV_SYN and event.type ~= events.EV_ABS then
-    return
-  end
-
-  if event.type == events.EV_ABS then
-    if event.code == mtCodes.ABS_MT_SLOT or event.code == mtCodes.ABS_MT_TRACKING_ID then
-      self.slots[event.value] = {}
-      self.current_slot = self.slots[event.value]
-    elseif event.code == mtCodes.ABS_MT_POSITION_X then
-      if self.current_slot then
-        self.current_slot.x = event.value
-      end
-    elseif event.code == mtCodes.ABS_MT_POSITION_Y then
-      if self.current_slot then
-        self.current_slot.y = event.value
-      end
-    elseif event.code == mtCodes.ABS_MT_TOOL_TYPE then
-      if self.current_slot then
-        self.current_slot.toolType = event.value
-      end
-    elseif event.code == input.pressure_event and event.value == 0 then
-      if self.current_slot and self.current_slot.toolType and self.current_slot.toolType == 1 then
-        self.current_slot = nil
-      end
-    end
-  elseif event.type == events.EV_SYN then
-    if event.code == mtCodes.SYN_REPORT and self.current_slot and self.current_slot.x and self.current_slot.y then
-      local tx = self.current_slot.x - self.dimen.x;
-      local ty = self.current_slot.y - self.dimen.y;
-      --- Boundary check
-      if tx < 0 or tx > self.dimen.w or tx < 0 or ty > self.dimen.h then
-        return;
-      end
-      table.insert(self.touchEvents, { x = tx, y = ty, time = (event.time.sec * 1000000 + event.time.usec) })
-      -- self:paintToBB(); -- reduce the number of redraws
-      if #self.touchEvents < 2 then
-        self.bb:paintRectRGB32(tx, ty, self.brushSize, self.brushSize, self.penColor);
-      else
-        local prevTEvent = self.touchEvents[#self.touchEvents - 1]
-        local tEvent = self.touchEvents[#self.touchEvents]
-
-        if tEvent.time - prevTEvent.time < self.strokeTime then
-          self:interPolate(prevTEvent, tEvent);
-        else
-          self.bb:paintRectRGB32(tEvent.x, tEvent.y, self.brushSize, self.brushSize, self.penColor);
-        end
-      end
-      UIManager:setDirty(self, function()
-        return "ui", self.dimen
-      end);
-      self.current_slot = nil
-      self.slots = {}
-    end
-  end
+  UIManager:setDirty(self, function()
+    return "ui", self.dimen
+  end);
 end
 
 function NotesWidget:paintToBB()
@@ -241,7 +158,7 @@ function NotesWidget:paintToBB()
       self.bb:paintRect(tEvent.x, tEvent.y, self.brushSize, self.brushSize, self.penColor);
     else
       local prevTEvent = self.touchEvents[index - 1]
-      if tEvent.time - prevTEvent.time < self.strokeTime then
+      if tEvent.time - prevTEvent.time < self.strokeTime and tEvent.toolType == prevTEvent.toolType then
         self:interPolate(prevTEvent, tEvent);
       else
         self.bb:paintRectRGB32(tEvent.x, tEvent.y, self.brushSize, self.brushSize, self.penColor);

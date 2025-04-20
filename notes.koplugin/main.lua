@@ -76,15 +76,7 @@ function Notes:init()
     end,
     { name = "InputListener Hook Params" });
 
-  InputListener:setListener(function(touchEvent, hook_params)
-    if self.isRunning then
-      logger.dbg("Notes: Got Touch Event ", touchEvent, "hook_params", hook_params);
-    end
-  end);
-  Input:registerEventAdjustHook(function(input, event, hook_params)
-      NotesWidget:kernelEventListener(input, event, hook_params)
-    end,
-    { name = "Hook Params" });
+  InputListener:setListener(function(event, hook_params) NotesWidget:touchEventListener(event, hook_params) end);
   logger.dbg("Notes:init registerd EventAdjustHook");
 
   logger.dbg("***********************Notes:init ***********************************");
