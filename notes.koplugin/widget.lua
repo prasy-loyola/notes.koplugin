@@ -33,21 +33,28 @@ local Screen = require("device").screen
 ---@field bb BlitBuffer
 ---@field brushSize integer
 ---@field penColor integer
+---@field backgroundColor integer
 ---@field strokeTime integer
 ---@field strokeDelay integer
 ---@field kernelEventListener function
 ---@field slots Slot[]
 ---@field current_slot Slot
 
+
+local RED = Blitbuffer.colorFromName("red")
+local WHITE = Blitbuffer.colorFromString("#ffffff")
+local PEN_BRUSH_SIZE = 3
+local ERASER_BRUSH_SIZE = PEN_BRUSH_SIZE * 3
 ---@type NotesWidget
 local NotesWidget = Widget:new {
   dimen = Geom:new {
-    w = Screen:getSize().w * 0.95 ,
+    w = Screen:getSize().w * 0.95,
     h = Screen:getSize().h * 0.95,
   },
   touchEvents = {},
   brushSize = 3,
-  penColor = Blitbuffer.colorFromName("red"),
+  backgroundColor = WHITE,
+  penColor = RED,
   strokeDelay = 10 * 1000,
   strokeTime = 60 * 1000,
   slots = {},
@@ -70,7 +77,7 @@ function NotesWidget:paintTo(bb, x, y)
   end
   if not self.bb then
     self.bb = Blitbuffer.new(self.dimen.w, self.dimen.h, Blitbuffer.TYPE_BBRGB32);
-    self.bb:paintRectRGB32(0, 0, self.dimen.w, self.dimen.h, Blitbuffer.colorFromString("#ffffff"));
+    self.bb:paintRectRGB32(0, 0, self.dimen.w, self.dimen.h, self.backgroundColor);
   end
   logger.dbg("NotesWidget:paintTo", x, y);
   bb:blitFrom(self.bb, x, y, 0, 0, self.dimen.w, self.dimen.h)
@@ -129,6 +136,7 @@ local mtCodes = {
   ABS_MT_POSITION_Y = 54,
   ABS_MT_TOOL_TYPE = 55,
   ABS_MT_TRACKING_ID = 57,
+  Eraser = 331,
 }
 
 ---@class Time
@@ -149,6 +157,18 @@ function NotesWidget:kernelEventListener(input, event, hook_params)
   if not self.slots then
     self.slots = {}
   end
+
+  if event.code == mtCodes.Eraser then
+    logger.dbg("Got an eraser event", event.code, event.value);
+    if event.value == 0 then
+      self.penColor = RED
+      self.brushSize = PEN_BRUSH_SIZE
+    elseif event.value == 1 then
+      self.penColor = WHITE
+      self.brushSize = ERASER_BRUSH_SIZE
+    end
+  end
+
   if event.type ~= events.EV_SYN and event.type ~= events.EV_ABS then
     return
   end

@@ -83,11 +83,12 @@ function Notes:onNotesStart()
   logger.dbg("Notes:onNotesStart registerd EventAdjustHook");
   UIManager:show(NotesWidget);
   UIManager:show(self.dialog_frame);
+  UIManager:setDirty("ui", "full");
 end
 
 function Notes:onDispatcherRegisterActions()
   Dispatcher:registerAction("show_notes",
-    { category = "none", event = "NotesStart", title = _("Notes"), device = true })
+    { category = "none", event = "NotesStart", title = _("Show Notes"), general = true })
 end
 
 function Notes:addToMainMenu(menu_items)
