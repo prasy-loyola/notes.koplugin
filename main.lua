@@ -10,6 +10,8 @@ local Input = require("device").input
 local TitleBar = require("ui/widget/titlebar")
 local UIManager = require("ui/uimanager")
 local VerticalGroup = require("ui/widget/verticalgroup")
+local HorizontalGroup = require("ui/widget/horizontalgroup")
+local IconButton = require("ui/widget/iconbutton")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local Size = require("ui/size")
 local _ = require("gettext")
@@ -30,6 +32,8 @@ local Notes = WidgetContainer:new {
 
 function Notes:init()
   logger.dbg("Notes:init");
+  ---@type NotesWidget
+  self.notesWidget = NotesWidget:new();
   self.margin = 10;
 
   self.layout = {}
@@ -38,19 +42,44 @@ function Notes:init()
   self.title_bar = TitleBar:new {
     width = self.width - Size.border.window * 4,
     with_bottom_line = true,
-    title = _("Notes"),
+    title = _("Notes " .. self.notesWidget:getPageName()),
     bottom_v_padding = 0,
     show_parent = self,
     right_icon = "close",
-    left_icon = "",
+    left_icon = "plus",
+    left_icon_tap_callback = function()
+      self.notesWidget:newPage()
+      self.title_bar:setTitle(_("Notes " .. self.notesWidget:getPageName()));
+    end,
     close_callback = function()
       self.isRunning = false
-      NotesWidget.isRunning = false
-      UIManager:close(NotesWidget);
+      self.notesWidget.isRunning = false
+      UIManager:close(self.notesWidget);
       UIManager:close(self.dialog_frame);
       UIManager:setDirty("ui", "full");
     end
   }
+
+  local options = HorizontalGroup:new {
+    IconButton:new {
+      height = 50,
+      icon = "chevron.left",
+      callback = function()
+        self.notesWidget:prevPage();
+        self.title_bar:setTitle(_("Notes " .. self.notesWidget:getPageName()));
+      end
+    },
+    IconButton:new {
+      height = 50,
+      icon = "chevron.right",
+      callback = function()
+        self.notesWidget:nextPage();
+        self.title_bar:setTitle(_("Notes " .. self.notesWidget:getPageName()));
+      end
+    }
+  }
+
+
   self.dialog_frame = FrameContainer:new {
     radius = Size.radius.window,
     bordersize = Size.border.window,
@@ -61,12 +90,11 @@ function Notes:init()
     VerticalGroup:new {
       align = "center",
       self.title_bar,
-      NotesWidget,
+      options,
+      self.notesWidget,
     }
   }
 
-  NotesWidget.parent = self.dialog_frame[1]
-  NotesWidget.parent2 = self.dialog_frame
   self:onDispatcherRegisterActions()
 
   self.ui.menu:registerToMainMenu(self)
@@ -77,7 +105,7 @@ function Notes:init()
     end,
     { name = "InputListener Hook Params" });
 
-  InputListener:setListener(function(event, hook_params) NotesWidget:touchEventListener(event, hook_params) end);
+  InputListener:setListener(function(event, hook_params) self.notesWidget:touchEventListener(event, hook_params) end);
   logger.dbg("Notes:init registerd EventAdjustHook");
 
   logger.dbg("***********************Notes:init ***********************************");
@@ -90,8 +118,8 @@ end
 
 function Notes:onNotesStart()
   self.isRunning = true
-  NotesWidget.isRunning = true
-  UIManager:show(NotesWidget);
+  self.notesWidget.isRunning = true
+  UIManager:show(self.notesWidget);
   UIManager:show(self.dialog_frame);
   UIManager:setDirty("ui", "full");
 end

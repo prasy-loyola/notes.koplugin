@@ -9,6 +9,7 @@ local UIManager = require("ui/uimanager")
 local Widget = require("ui/widget/widget")
 local Screen = require("device").screen
 local InputListener = require("./inputlistener")
+local _ = require("gettext")
 require("./inputlistener")
 
 ---@class BlitBuffer
@@ -19,6 +20,7 @@ local RED = Blitbuffer.colorFromName("red")
 local WHITE = Blitbuffer.colorFromString("#ffffff")
 local PEN_BRUSH_SIZE = 3
 local ERASER_BRUSH_SIZE = PEN_BRUSH_SIZE * 3
+
 ---@class NotesWidget
 ---@field dimen any
 ---@field touchEvents TouchEvent[]
@@ -30,21 +32,26 @@ local ERASER_BRUSH_SIZE = PEN_BRUSH_SIZE * 3
 ---@field strokeDelay integer
 ---@field kernelEventListener function
 ---@field isRunning boolean
-local NotesWidget = Widget:new {
-  dimen = Geom:new {
-    w = Screen:getSize().w * 0.95,
-    h = Screen:getSize().h * 0.95,
-  },
-  touchEvents = {},
-  brushSize = 3,
-  backgroundColor = WHITE,
-  penColor = RED,
-  strokeDelay = 10 * 1000,
-  strokeTime = 60 * 1000,
+---@field pages BlitBuffer[]
+---@field currentPage integer
+
+local NotesWidget = Widget:extend {
 }
 
 function NotesWidget:init()
   logger.info("NotesWidget:init()")
+  self.dimen = Geom:new {
+    w = Screen:getSize().w * 0.95,
+    h = Screen:getSize().h * 0.95,
+  };
+  self.touchEvents = {}
+  self.brushSize = 3
+  self.backgroundColor = WHITE
+  self.penColor = RED
+  self.strokeDelay = 10 * 1000
+  self.strokeTime = 60 * 1000
+  self.pages = {}
+  self:newPage()
 end
 
 function NotesWidget:getSize()
@@ -58,8 +65,7 @@ function NotesWidget:paintTo(bb, x, y)
     return
   end
   if not self.bb then
-    self.bb = Blitbuffer.new(self.dimen.w, self.dimen.h, Blitbuffer.TYPE_BBRGB32);
-    self.bb:paintRectRGB32(0, 0, self.dimen.w, self.dimen.h, self.backgroundColor);
+    self:newPage();
   end
   logger.dbg("NotesWidget:paintTo", x, y);
   bb:blitFrom(self.bb, x, y, 0, 0, self.dimen.w, self.dimen.h)
@@ -147,9 +153,7 @@ function NotesWidget:touchEventListener(tEvent, hook_params)
       self.bb:paintRectRGB32(tEvent.x, tEvent.y, self.brushSize, self.brushSize, self.penColor);
     end
   end
-  UIManager:setDirty(self, function()
-    return "ui", self.dimen
-  end);
+  self:setDirty()
 end
 
 function NotesWidget:paintToBB()
@@ -170,6 +174,45 @@ function NotesWidget:paintToBB()
     end
   end
 
+  UIManager:setDirty(self, function()
+    return "ui", self.dimen
+  end);
+end
+
+function NotesWidget:newPage()
+  local bb = Blitbuffer.new(self.dimen.w, self.dimen.h, Blitbuffer.TYPE_BBRGB32);
+  bb:paintRectRGB32(0, 0, self.dimen.w, self.dimen.h, self.backgroundColor);
+  table.insert(self.pages, bb);
+  self.currentPage = #self.pages
+  self.bb = self.pages[self.currentPage]
+  self:setDirty()
+end
+
+function NotesWidget:getPageName()
+  return _("(" .. tostring(self.currentPage) .. " of " .. tostring(#self.pages) .. ")")
+end
+
+function NotesWidget:nextPage()
+  if self.currentPage == #self.pages then
+    self:newPage();
+  else
+    self.currentPage = self.currentPage + 1
+    self.bb = self.pages[self.currentPage]
+    self:setDirty()
+  end
+end
+
+function NotesWidget:prevPage()
+  if self.currentPage == 1 then
+    return
+  else
+    self.currentPage = self.currentPage - 1
+    self.bb = self.pages[self.currentPage]
+    self:setDirty()
+  end
+end
+
+function NotesWidget:setDirty()
   UIManager:setDirty(self, function()
     return "ui", self.dimen
   end);
