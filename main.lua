@@ -23,11 +23,6 @@ local InputListener = require("./inputlistener")
 local Notes = WidgetContainer:new {
   name = "notes",
   is_doc_only = false,
-  -- is_always_active = true,
-  -- modal = true,
-  -- stop_events_propagation = true,
-  -- keyboard_state = nil,
-  -- width = nil,
 }
 
 function Notes:init()
@@ -46,7 +41,7 @@ function Notes:init()
     bottom_v_padding = 0,
     show_parent = self,
     right_icon = "close",
-    left_icon = "plus",
+    left_icon = "appbar.filemanager",
     left_icon_tap_callback = function()
       self.notesWidget:newPage()
       self.title_bar:setTitle(_("Notes " .. self.notesWidget:getPageName()));
@@ -88,7 +83,7 @@ function Notes:init()
     margin = self.margin,
     background = Blitbuffer.COLOR_WHITE,
     VerticalGroup:new {
-      align = "center",
+      align = "left",
       self.title_bar,
       options,
       self.notesWidget,
