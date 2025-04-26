@@ -1,4 +1,5 @@
 local logger = require("logger")
+local Screen = require("device").screen
 
 
 ---@enum EventType
@@ -104,8 +105,8 @@ end
 ---@field current_slot Slot
 ---@field penHovering boolean
 local InputListener = {
-  listener = noOpListener
-
+  listener = noOpListener,
+  screen = Screen
 }
 
 ---@param listener fun(touchEvent: TouchEvent)
@@ -133,10 +134,32 @@ function InputListener:createTouchEvent(slot, time)
     touchEventType = TouchEventType.PEN_HOVER
   end
 
+  local rotation = self.screen:getRotationMode();
+
+  local x, y
+  if rotation == self.screen.DEVICE_ROTATED_COUNTER_CLOCKWISE then
+    -- 3
+    local height = self.screen:getHeight()
+    x, y = (slot.y), (height - slot.x)
+  elseif rotation == self.screen.DEVICE_ROTATED_CLOCKWISE then
+    -- 2
+    local width = self.screen:getWidth()
+    x, y = (width - slot.y), (slot.x)
+  elseif rotation == self.screen.DEVICE_ROTATED_UPSIDE_DOWN then
+    -- 1
+    local height = self.screen:getHeight()
+    local width = self.screen:getWidth()
+    x, y = (width - slot.x), (height - slot.y)
+  elseif rotation == self.screen.DEVICE_ROTATED_UPRIGHT then
+    -- 0
+    x, y = slot.x, slot.y
+  end
+
+
   ---@type TouchEvent
   return TouchEvent:new {
-    x = slot.x,
-    y = slot.y,
+    x = x,
+    y = y,
     time = (time.sec * 1000000) + time.usec,
     type = touchEventType,
     toolType = slot.toolType or ToolType.FINGER

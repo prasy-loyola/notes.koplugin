@@ -129,8 +129,6 @@ function NotesWidget:touchEventListener(tEvent, hook_params)
     return
   end
 
-  logger.dbg("Rotation mode", Screen:getRotationMode());
-  logger.dbg("Rotation", Screen.rotation);
 
   local tx = tEvent.x - self.dimen.x;
   local ty = tEvent.y - self.dimen.y;
@@ -138,6 +136,7 @@ function NotesWidget:touchEventListener(tEvent, hook_params)
   if tx < 0 or tx > self.dimen.w or tx < 0 or ty > self.dimen.h then
     return;
   end
+
   tEvent.x = tx
   tEvent.y = ty
   table.insert(self.touchEvents, tEvent)
