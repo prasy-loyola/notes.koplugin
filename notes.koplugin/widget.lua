@@ -122,6 +122,9 @@ function NotesWidget:touchEventListener(tEvent, hook_params)
     return
   end
 
+  logger.dbg("Rotation mode", Screen:getRotationMode());
+  logger.dbg("Rotation", Screen.rotation);
+
   local tx = tEvent.x - self.dimen.x;
   local ty = tEvent.y - self.dimen.y;
   --- Boundary check

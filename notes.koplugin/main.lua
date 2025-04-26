@@ -42,6 +42,7 @@ function Notes:init()
     bottom_v_padding = 0,
     show_parent = self,
     right_icon = "close",
+    left_icon = "",
     close_callback = function()
       self.isRunning = false
       NotesWidget.isRunning = false
