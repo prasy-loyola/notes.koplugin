@@ -4,9 +4,11 @@ This plugin provides a Handwritten notes
 
 local logger = require("logger")
 local Blitbuffer = require("ffi/blitbuffer")
+local ButtonDialog = require("ui/widget/buttondialog")
 local Dispatcher = require("dispatcher")
 local FrameContainer = require("ui/widget/container/framecontainer")
 local Input = require("device").input
+local PathChooser = require("ui/widget/pathchooser")
 local TitleBar = require("ui/widget/titlebar")
 local UIManager = require("ui/uimanager")
 local VerticalGroup = require("ui/widget/verticalgroup")
@@ -20,6 +22,15 @@ local Screen = require("device").screen
 local NotesWidget = require("./widget")
 local InputListener = require("./inputlistener")
 
+
+
+---@class Notes
+---@field margin int
+---@field notesWidget NotesWidget
+---@field title_bar TitleBar
+---@field currentPath string
+
+---@type Notes
 local Notes = WidgetContainer:new {
   name = "notes",
   is_doc_only = false,
@@ -41,11 +52,8 @@ function Notes:init()
     bottom_v_padding = 0,
     show_parent = self,
     right_icon = "close",
-    left_icon = "appbar.filemanager",
-    left_icon_tap_callback = function()
-      self.notesWidget:newPage()
-      self.title_bar:setTitle(_("Notes " .. self.notesWidget:getPageName()));
-    end,
+    left_icon = "appbar.menu",
+    left_icon_tap_callback = function() self:showMenu() end,
     close_callback = function()
       self.isRunning = false
       self.notesWidget.isRunning = false
@@ -133,6 +141,49 @@ function Notes:addToMainMenu(menu_items)
       self:onNotesStart()
     end,
   }
+end
+
+function Notes:showMenu()
+  local dialog
+  local buttons = {
+    { {
+      text = _("Save"),
+      callback = function()
+        UIManager:close(dialog)
+        logger.dbg("Notes: Saving");
+        if self.currentPath then
+          self.notesWidget:saveToDir(self.currentPath);
+        else
+          self.notesWidget.isRunning = false;
+          logger.dbg("Opening pathchooser");
+          local path_chooser = PathChooser:new {
+            select_file = false,
+            -- path = "/",
+            onConfirm = function(dirPath)
+              logger.info("Selected folder ", dirPath);
+              self.currentPath = dirPath;
+              self.notesWidget.isRunning = true;
+              self.notesWidget:saveToDir(self.currentPath);
+            end,
+            onCancel = function()
+              self.notesWidget.isRunning = true;
+            end
+          }
+          UIManager:show(path_chooser)
+        end
+      end,
+    } }
+
+  }
+  dialog = ButtonDialog:new {
+    shrink_unneeded_width = true,
+    buttons = buttons,
+    anchor = function()
+      return self.title_bar.left_button.image.dimen
+    end,
+    modal = true,
+  }
+  UIManager:show(dialog)
 end
 
 return Notes

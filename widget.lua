@@ -30,11 +30,12 @@ local ERASER_BRUSH_SIZE = PEN_BRUSH_SIZE * 3
 ---@field backgroundColor integer
 ---@field strokeTime integer
 ---@field strokeDelay integer
----@field kernelEventListener function
 ---@field isRunning boolean
 ---@field pages BlitBuffer[]
 ---@field currentPage integer
+---@field setDirty fun()
 
+---@type NotesWidget
 local NotesWidget = Widget:extend {
 }
 
@@ -216,6 +217,22 @@ function NotesWidget:setDirty()
   UIManager:setDirty(self, function()
     return "ui", self.dimen
   end);
+end
+
+---Saves the notes to a directory
+---@param dirPath string
+function NotesWidget:saveToDir(dirPath)
+  logger.info("Got dirpath", dirPath);
+  if not dirPath then
+    logger.error("dirPath is mandatory");
+    return;
+  end
+
+  for i, bb in ipairs(self.pages) do
+    local filePath = dirPath .. "/page-" .. tostring(i) .. ".png";
+    logger.dbg("Writing file", filePath);
+    bb:writePNG(filePath);
+  end
 end
 
 return NotesWidget
