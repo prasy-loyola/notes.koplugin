@@ -1,6 +1,25 @@
 local logger = require("logger")
+local Device = require("device")
 local Screen = require("device").screen
 
+local Input = require("device/input")
+local MyInput = Input:new({
+  device = Device,
+});
+local GestureDetector = require("device/gesturedetector")
+
+for k, _ in pairs(MyInput.__index) do
+  logger.info("Input.", k);
+end
+
+MyInput.gesture_detector = {
+  screen = Screen,
+  input = MyInput,
+}
+MyInput.gesture_detector.feedEvent = function(self, ev)
+  logger.info("MyGesture ev:", ev)
+  return {}
+end
 
 ---@enum EventType
 local events = {
@@ -171,6 +190,8 @@ end
 ---@param event KernelEvent
 ---@param hook_params any
 function InputListener:eventAdjustmentHook(input, event, hook_params)
+  MyInput:handleTouchEv(event)
+
   if not self.slots then
     self.slots = {}
   end
