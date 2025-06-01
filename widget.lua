@@ -23,7 +23,7 @@ local ERASER_BRUSH_SIZE = PEN_BRUSH_SIZE * 3
 
 ---@class NotesWidget
 ---@field dimen any
----@field touchEvents TouchEvent[]
+---@field touchEvents TouchEvent[][]
 ---@field bb BlitBuffer
 ---@field brushSize integer
 ---@field penColor integer
@@ -45,7 +45,7 @@ function NotesWidget:init()
     w = Screen:getSize().w * 0.95,
     h = Screen:getSize().h * 0.95,
   };
-  self.touchEvents = {}
+  self.touchEvents = { {} }
   self.brushSize = 3
   self.backgroundColor = WHITE
   self.penColor = RED
@@ -118,15 +118,12 @@ function NotesWidget:touchEventListener(tEvent, hook_params)
   if not self.isRunning or not tEvent then
     return
   end
+  self.penColor = RED
+  self.brushSize = PEN_BRUSH_SIZE
+  logger.dbg("widget branch1.1")
   if tEvent.type == InputListener.TouchEventType.ERASER_DOWN then
     self.penColor = WHITE
     self.brushSize = ERASER_BRUSH_SIZE
-  elseif tEvent.type == InputListener.TouchEventType.ERASER_UP then
-    self.penColor = RED
-    self.brushSize = PEN_BRUSH_SIZE
-  elseif tEvent.type == InputListener.TouchEventType.PEN_HOVER or
-      tEvent.type == InputListener.TouchEventType.ERASER_HOVER then
-    return
   end
 
 
@@ -139,13 +136,18 @@ function NotesWidget:touchEventListener(tEvent, hook_params)
 
   tEvent.x = tx
   tEvent.y = ty
-  table.insert(self.touchEvents, tEvent)
-  -- self:paintToBB(); -- reduce the number of redraws
-  if #self.touchEvents < 2 then
+
+  if not self.touchEvents[tEvent.slot] then
+    self.touchEvents[tEvent.slot] = {}
+  end
+
+  local touchEvents = self.touchEvents[tEvent.slot]
+  table.insert(touchEvents, tEvent)
+  if #touchEvents < 2 then
     self.bb:paintRectRGB32(tx, ty, self.brushSize, self.brushSize, self.penColor);
   else
-    local prevTEvent = self.touchEvents[#self.touchEvents - 1]
-    local tEvent = self.touchEvents[#self.touchEvents]
+    local prevTEvent = touchEvents[#touchEvents - 1]
+    local tEvent = touchEvents[#touchEvents]
 
     if tEvent.time - prevTEvent.time < self.strokeTime and tEvent.toolType == prevTEvent.toolType then
       self:interPolate(prevTEvent, tEvent);
@@ -161,15 +163,17 @@ function NotesWidget:paintToBB()
     return true
   end
 
-  for index, tEvent in ipairs(self.touchEvents) do
-    if index == 1 then
-      self.bb:paintRect(tEvent.x, tEvent.y, self.brushSize, self.brushSize, self.penColor);
-    else
-      local prevTEvent = self.touchEvents[index - 1]
-      if tEvent.time - prevTEvent.time < self.strokeTime and tEvent.toolType == prevTEvent.toolType then
-        self:interPolate(prevTEvent, tEvent);
+  for _, slotTouchEvs in pairs(self.touchEvents) do
+    for index, tEvent in ipairs(slotTouchEvs) do
+      if index == 1 then
+        self.bb:paintRect(tEvent.x, tEvent.y, self.brushSize, self.brushSize, self.penColor);
       else
-        self.bb:paintRectRGB32(tEvent.x, tEvent.y, self.brushSize, self.brushSize, self.penColor);
+        local prevTEvent = self.touchEvents[index - 1]
+        if tEvent.time - prevTEvent.time < self.strokeTime and tEvent.toolType == prevTEvent.toolType then
+          self:interPolate(prevTEvent, tEvent);
+        else
+          self.bb:paintRectRGB32(tEvent.x, tEvent.y, self.brushSize, self.brushSize, self.penColor);
+        end
       end
     end
   end
@@ -185,6 +189,7 @@ function NotesWidget:newPage()
   table.insert(self.pages, bb);
   self.currentPage = #self.pages
   self.bb = self.pages[self.currentPage]
+  self.touchEvents = { {} };
   self:setDirty()
 end
 

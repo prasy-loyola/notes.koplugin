@@ -1,1 +1,4 @@
 **/crash.log
+.idea/
+*.bkp
+test.txt

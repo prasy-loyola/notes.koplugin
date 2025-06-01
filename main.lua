@@ -22,8 +22,6 @@ local Screen = require("device").screen
 local NotesWidget = require("./widget")
 local InputListener = require("./inputlistener")
 
-
-
 ---@class Notes
 ---@field margin int
 ---@field notesWidget NotesWidget
@@ -41,6 +39,8 @@ function Notes:init()
   ---@type NotesWidget
   self.notesWidget = NotesWidget:new();
   self.margin = 10;
+  self.debug_plugin = G_reader_settings:readSetting("notes_plugin_debug", false)
+  G_reader_settings:saveSetting("notes_plugin_debug", self.debug_plugin)
 
   self.layout = {}
   self.width = self.width or math.floor(math.min(Screen:getWidth(), Screen:getHeight()) - self.margin * 2)
@@ -55,11 +55,7 @@ function Notes:init()
     left_icon = "appbar.menu",
     left_icon_tap_callback = function() self:showMenu() end,
     close_callback = function()
-      self.isRunning = false
-      self.notesWidget.isRunning = false
-      UIManager:close(self.notesWidget);
-      UIManager:close(self.dialog_frame);
-      UIManager:setDirty("ui", "full");
+      self:onClose();
     end
   }
 
@@ -108,15 +104,22 @@ function Notes:init()
     end,
     { name = "InputListener Hook Params" });
 
-  InputListener:setListener(function(event, hook_params) self.notesWidget:touchEventListener(event, hook_params) end);
+  InputListener:setListener(function(event, hook_params)
+    self.notesWidget:touchEventListener(event, hook_params)
+  end);
   logger.dbg("Notes:init registerd EventAdjustHook");
 
   logger.dbg("***********************Notes:init ***********************************");
 end
 
 function Notes:onClose()
-  self.isRunning = false
   logger.dbg("Notes:onClose");
+  self.isRunning = false
+  self.notesWidget.isRunning = false
+  UIManager:close(self.notesWidget);
+  UIManager:close(self.dialog_frame);
+  UIManager:setDirty("ui", "full");
+  InputListener:cleanupGestureDetector();
 end
 
 function Notes:onNotesStart()
@@ -125,11 +128,23 @@ function Notes:onNotesStart()
   UIManager:show(self.notesWidget);
   UIManager:show(self.dialog_frame);
   UIManager:setDirty("ui", "full");
+  InputListener:setupGestureDetector();
+end
+
+function Notes:onRunTest()
+  logger.info("Running Tests");
+  self.isRunning = true
+  self.notesWidget.isRunning = true
+  -- self:onNotesStart();
+  InputListener:runTest(Input, {});
 end
 
 function Notes:onDispatcherRegisterActions()
   Dispatcher:registerAction("show_notes",
     { category = "none", event = "NotesStart", title = _("Show Notes"), general = true })
+
+  Dispatcher:registerAction("run_notes_test",
+    { category = "none", event = "RunTest", title = _("Run Notes Test"), general = true })
 end
 
 function Notes:addToMainMenu(menu_items)
@@ -141,12 +156,20 @@ function Notes:addToMainMenu(menu_items)
       self:onNotesStart()
     end,
   }
+  if self.debug_plugin then
+    menu_items.debugnotes = {
+      text = _("Test Notes Plugin"),
+      callback = function()
+        self:onRunTest()
+      end,
+    }
+  end
 end
 
 function Notes:showMenu()
   local dialog
   local buttons = {
-    { {
+    {
       text = _("Save"),
       callback = function()
         UIManager:close(dialog)
@@ -172,12 +195,23 @@ function Notes:showMenu()
           UIManager:show(path_chooser)
         end
       end,
-    } }
-
+    }
   }
+
+  if self.debug_plugin then
+    table.insert(buttons, {
+      text = _("Test"),
+      callback = function()
+        UIManager:close(dialog)
+        self:onRunTest();
+      end
+    }
+    )
+  end
+
   dialog = ButtonDialog:new {
     shrink_unneeded_width = true,
-    buttons = buttons,
+    buttons = { buttons },
     anchor = function()
       return self.title_bar.left_button.image.dimen
     end,
