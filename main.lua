@@ -108,7 +108,9 @@ function Notes:init()
     end,
     { name = "InputListener Hook Params" });
 
-  InputListener:setListener(function(event, hook_params) self.notesWidget:touchEventListener(event, hook_params) end);
+  InputListener:setListener(function(event, hook_params)
+    self.notesWidget:touchEventListener(event, hook_params)
+  end);
   logger.dbg("Notes:init registerd EventAdjustHook");
 
   logger.dbg("***********************Notes:init ***********************************");
@@ -127,9 +129,20 @@ function Notes:onNotesStart()
   UIManager:setDirty("ui", "full");
 end
 
+function Notes:onRunTest()
+  logger.info("Running Tests");
+  self.isRunning = true
+  self.notesWidget.isRunning = true
+  -- self:onNotesStart();
+  InputListener:runTest(Input, {});
+end
+
 function Notes:onDispatcherRegisterActions()
   Dispatcher:registerAction("show_notes",
     { category = "none", event = "NotesStart", title = _("Show Notes"), general = true })
+
+  Dispatcher:registerAction("run_notes_test",
+    { category = "none", event = "RunTest", title = _("Run Notes Test"), general = true })
 end
 
 function Notes:addToMainMenu(menu_items)
@@ -141,12 +154,28 @@ function Notes:addToMainMenu(menu_items)
       self:onNotesStart()
     end,
   }
+  menu_items.debugnotes = {
+    text = _("Test Notes Plugin"),
+    -- sorting_hint = "more_tools",
+    -- keep_menu_open = true,
+    callback = function()
+      self:onRunTest()
+    end,
+  }
 end
 
 function Notes:showMenu()
   local dialog
   local buttons = {
-    { {
+    { 
+      {
+        text = _("Test"),
+        callback = function() 
+          UIManager:close(dialog)
+          self:onRunTest();
+        end
+      },
+      {
       text = _("Save"),
       callback = function()
         UIManager:close(dialog)

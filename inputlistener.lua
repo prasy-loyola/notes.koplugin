@@ -166,27 +166,68 @@ function InputListener:createTouchEvent(slot, time)
   }
 end
 
+function InputListener:runTest(input, hook_params)
+  local f, err, str;
+  f, err = io.open('/mnt/onboard/.adds/koreader/plugins/notes.koplugin/touch-input.csv', 'r');
+  if not f then
+    logger.err('Couldnt open file');
+    return
+  end
+  str, err = f:read("*a")
+  if not str then
+    logger.err('Couldnt read file');
+    return
+  end
+  logger.info("Read touch-input.csv")
+
+  -- for type, code, value, sec, usec in string.gmatch(str, '(%d+),(%d+),(%d+),(%d+),(%d+)[^%s]') do
+  -- for type, code, value, sec, usec in string.gmatch(str, '(%s+)[^%s]') do
+  for type, code, value, sec, usec in string.gmatch(str, '(%d+),(%d+),([-%d]+),(%d+),(%d+)[\r\n]+') do
+    local event = {
+      type = type,
+      code = code,
+      value = value,
+      time = {
+        sec = sec,
+        usec = usec
+      }
+    }
+    logger.info('Read TEV:' .. event.type .. ',' .. event.code ..
+      ',' .. event.value .. ',' .. event.time.sec .. ',' .. event.time.usec)
+    -- logger.info('Read TEV:' .. tostring(event))
+    -- input:handleTouchEv(event)
+    self:eventAdjustmentHook(input, event, hook_params)
+  end
+end
+
 ---An event listener to listen to kernel events directly before being fed into gestureDetector
 ---As we want to get all the touch events to not lose data in the gestureDetector
 ---@param event KernelEvent
 ---@param hook_params any
 function InputListener:eventAdjustmentHook(input, event, hook_params)
+  logger.info('TEV:' .. event.type .. ',' .. event.code ..
+    ',' .. event.value .. ',' .. event.time.sec .. ',' .. event.time.usec)
   if not self.slots then
     self.slots = {}
   end
 
   if event.code == mtCodes.Eraser and self.current_slot then
+    logger.dbg('branch1')
     self.current_slot.isEraser = true
     self.current_slot.value = event.value
   end
 
   if event.type ~= events.EV_SYN and event.type ~= events.EV_ABS then
+    logger.dbg('branch2')
     return
   end
 
   if event.type == events.EV_ABS then
+    logger.dbg('branch3')
     if event.code == mtCodes.ABS_MT_SLOT or event.code == mtCodes.ABS_MT_TRACKING_ID then
+      logger.dbg('branch4')
       if event.value == -1 and self.current_slot then
+        logger.dbg('branch5')
         local touchEvent = self:createTouchEvent(self.current_slot, event.time);
         if not (touchEvent.x and touchEvent.y and touchEvent.time and touchEvent.type) then
           logger.dbg("Incomplete touchEvent =>" .. tostring(touchEvent), self.current_slot)
@@ -194,6 +235,7 @@ function InputListener:eventAdjustmentHook(input, event, hook_params)
           logger.dbg("TouchEvent: " .. tostring(touchEvent));
           self.listener(touchEvent, hook_params)
         end
+        logger.dbg('branch6')
         return
       end
       if not self.slots[event.value] then
@@ -220,8 +262,11 @@ function InputListener:eventAdjustmentHook(input, event, hook_params)
       end
     end
   elseif event.type == events.EV_SYN then
+    logger.dbg('branch7')
     if event.code == mtCodes.SYN_REPORT then
+      logger.dbg('branch8')
       if not self.current_slot then
+        logger.dbg('branch9')
         return
       end
 
@@ -237,6 +282,8 @@ function InputListener:eventAdjustmentHook(input, event, hook_params)
       self.contacts = {}
       self.current_slot = nil
     end
+  else
+    logger.dbg("Ignoring: ")
   end
 end
 
