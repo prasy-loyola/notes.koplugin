@@ -41,6 +41,7 @@ function Notes:init()
   ---@type NotesWidget
   self.notesWidget = NotesWidget:new();
   self.margin = 10;
+  self.debug_plugin = G_reader_settings:readSetting("notes_plugin_debug", false)
 
   self.layout = {}
   self.width = self.width or math.floor(math.min(Screen:getWidth(), Screen:getHeight()) - self.margin * 2)
@@ -154,28 +155,20 @@ function Notes:addToMainMenu(menu_items)
       self:onNotesStart()
     end,
   }
-  menu_items.debugnotes = {
-    text = _("Test Notes Plugin"),
-    -- sorting_hint = "more_tools",
-    -- keep_menu_open = true,
-    callback = function()
-      self:onRunTest()
-    end,
-  }
+  if self.debug_plugin then
+    menu_items.debugnotes = {
+      text = _("Test Notes Plugin"),
+      callback = function()
+        self:onRunTest()
+      end,
+    }
+  end
 end
 
 function Notes:showMenu()
   local dialog
   local buttons = {
-    { 
-      {
-        text = _("Test"),
-        callback = function() 
-          UIManager:close(dialog)
-          self:onRunTest();
-        end
-      },
-      {
+    {
       text = _("Save"),
       callback = function()
         UIManager:close(dialog)
@@ -201,12 +194,23 @@ function Notes:showMenu()
           UIManager:show(path_chooser)
         end
       end,
-    } }
-
+    }
   }
+
+  if self.debug_plugin then
+    table.insert(buttons, {
+      text = _("Test"),
+      callback = function()
+        UIManager:close(dialog)
+        self:onRunTest();
+      end
+    }
+    )
+  end
+
   dialog = ButtonDialog:new {
     shrink_unneeded_width = true,
-    buttons = buttons,
+    buttons = { buttons },
     anchor = function()
       return self.title_bar.left_button.image.dimen
     end,
