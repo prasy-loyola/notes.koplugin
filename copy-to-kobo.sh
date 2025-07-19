@@ -1,4 +1,5 @@
 #!/bin/bash
 
-scp *.lua kobo:/mnt/onboard/.adds/koreader/plugins/notes.koplugin/
-scp *.lua *.csv kobo:/mnt/onboard/.adds/koreader/plugins/notes.koplugin/
+KOBOHOST=kobowifi
+scp *.lua $KOBOHOST:/mnt/onboard/.adds/koreader/plugins/notes.koplugin/
+scp *.lua *.csv $KOBOHOST:/mnt/onboard/.adds/koreader/plugins/notes.koplugin/

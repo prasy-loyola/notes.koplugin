@@ -180,22 +180,23 @@ function InputListener:runTest(input, hook_params)
   end
   logger.info("Read touch-input.csv")
 
-  -- for type, code, value, sec, usec in string.gmatch(str, '(%d+),(%d+),(%d+),(%d+),(%d+)[^%s]') do
-  -- for type, code, value, sec, usec in string.gmatch(str, '(%s+)[^%s]') do
+  local starting_tracking_id = self.last_tracking_id + 1
   for type, code, value, sec, usec in string.gmatch(str, '(%d+),(%d+),([-%d]+),(%d+),(%d+)[\r\n]+') do
+    
     local event = {
-      type = type,
-      code = code,
-      value = value,
+      type = tonumber(type),
+      code = tonumber(code),
+      value = tonumber(value),
       time = {
-        sec = sec,
-        usec = usec
+        sec = tonumber(sec),
+        usec = tonumber(usec)
       }
     }
+    if event.type == 3 and event.code == 57 then
+      event.value = starting_tracking_id
+    end
     logger.info('Read TEV:' .. event.type .. ',' .. event.code ..
       ',' .. event.value .. ',' .. event.time.sec .. ',' .. event.time.usec)
-    -- logger.info('Read TEV:' .. tostring(event))
-    -- input:handleTouchEv(event)
     self:eventAdjustmentHook(input, event, hook_params)
   end
 end
@@ -240,6 +241,10 @@ function InputListener:eventAdjustmentHook(input, event, hook_params)
       end
       if not self.slots[event.value] then
         self.slots[event.value] = {}
+        if (self.last_tracking_id or 0 ) < event.value then
+          self.last_tracking_id = event.value
+          logger.dbg("Set last_tracking_id:"..self.last_tracking_id)
+        end
       end
       self.current_slot = self.slots[event.value]
       self.current_slot["id"] = event.value
