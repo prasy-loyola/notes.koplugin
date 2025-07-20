@@ -213,22 +213,17 @@ function InputListener:eventAdjustmentHook(input, event, hook_params)
   end
 
   if event.code == mtCodes.Eraser and self.current_slot then
-    logger.dbg('branch1')
     self.current_slot.isEraser = true
     self.current_slot.value = event.value
   end
 
   if event.type ~= events.EV_SYN and event.type ~= events.EV_ABS then
-    logger.dbg('branch2')
     return
   end
 
   if event.type == events.EV_ABS then
-    logger.dbg('branch3')
     if event.code == mtCodes.ABS_MT_SLOT or event.code == mtCodes.ABS_MT_TRACKING_ID then
-      logger.dbg('branch4')
       if event.value == -1 and self.current_slot then
-        logger.dbg('branch5')
         local touchEvent = self:createTouchEvent(self.current_slot, event.time);
         if not (touchEvent.x and touchEvent.y and touchEvent.time and touchEvent.type) then
           logger.dbg("Incomplete touchEvent =>" .. tostring(touchEvent), self.current_slot)
@@ -236,7 +231,6 @@ function InputListener:eventAdjustmentHook(input, event, hook_params)
           logger.dbg("TouchEvent: " .. tostring(touchEvent));
           self.listener(touchEvent, hook_params)
         end
-        logger.dbg('branch6')
         return
       end
       if not self.slots[event.value] then
@@ -267,11 +261,8 @@ function InputListener:eventAdjustmentHook(input, event, hook_params)
       end
     end
   elseif event.type == events.EV_SYN then
-    logger.dbg('branch7')
     if event.code == mtCodes.SYN_REPORT then
-      logger.dbg('branch8')
       if not self.current_slot then
-        logger.dbg('branch9')
         return
       end
 

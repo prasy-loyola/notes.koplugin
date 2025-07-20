@@ -116,10 +116,8 @@ end
 ---@param hook_params any
 function NotesWidget:touchEventListener(tEvent, hook_params)
   if not self.isRunning or not tEvent then
-    logger.dbg("widget branch1")
     return
   end
-  logger.dbg("widget branch1.1")
   if tEvent.type == InputListener.TouchEventType.ERASER_DOWN then
     self.penColor = WHITE
     self.brushSize = ERASER_BRUSH_SIZE
@@ -131,13 +129,11 @@ function NotesWidget:touchEventListener(tEvent, hook_params)
     return
   end
 
-  logger.dbg("widget branch2")
 
   local tx = tEvent.x - self.dimen.x;
   local ty = tEvent.y - self.dimen.y;
   --- Boundary check
   if tx < 0 or tx > self.dimen.w or tx < 0 or ty > self.dimen.h then
-    logger.dbg("widget branch3")
     return;
   end
 
@@ -151,12 +147,9 @@ function NotesWidget:touchEventListener(tEvent, hook_params)
     local prevTEvent = self.touchEvents[#self.touchEvents - 1]
     local tEvent = self.touchEvents[#self.touchEvents]
 
-    logger.dbg("widget branch4")
     if tEvent.time - prevTEvent.time < self.strokeTime and tEvent.toolType == prevTEvent.toolType then
-      logger.dbg("widget branch5")
       self:interPolate(prevTEvent, tEvent);
     else
-      logger.dbg("widget branch6")
       self.bb:paintRectRGB32(tEvent.x, tEvent.y, self.brushSize, self.brushSize, self.penColor);
     end
   end
