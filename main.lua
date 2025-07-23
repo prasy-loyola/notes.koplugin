@@ -36,7 +36,6 @@ local Notes = WidgetContainer:new {
 
 function Notes:init()
   logger.dbg("Notes:init");
-  ---@type NotesWidget
   self.notesWidget = NotesWidget:new();
   self.margin = 10;
   self.debug_plugin = G_reader_settings:readSetting("notes_plugin_debug", false)
@@ -75,9 +74,16 @@ function Notes:init()
         self.notesWidget:nextPage();
         self.title_bar:setTitle(_("Notes " .. self.notesWidget:getPageName()));
       end
+    },
+    IconButton:new {
+      height = 50,
+      icon = "exit",
+      callback = function()
+        self.notesWidget:clearPage();
+        self.notesWidget:setDirty();
+      end
     }
   }
-
 
   self.dialog_frame = FrameContainer:new {
     radius = Size.radius.window,

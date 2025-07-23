@@ -24,7 +24,7 @@ Use the hamburger menu at the top-left to save the notes to a directory as png f
 4. [x] Load notes from storage
 5. [ ] Multi-color pens
 6. [ ] Eraser (supports kobo stylus, no icon to select eraser at the moment)
-7. [ ] Clear page/whole notes
+7. [x] Clear page ~~/whole notes~~
 
 ## Features not planned at the moment
 1. Support undo/redo
