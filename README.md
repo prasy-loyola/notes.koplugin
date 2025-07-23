@@ -21,10 +21,10 @@ Use the hamburger menu at the top-left to save the notes to a directory as png f
 1. [x] Simple app to take notes while reading technical books.
 2. [x] Support multi page notes 
 3. [x] Save into storage as simple image files (.png)
-4. [ ] Load notes from storage
-6. [ ] Multi-color pens
-7. [ ] Eraser (supports kobo stylus, no icon to select eraser at the moment)
-8. [ ] Clear page/whole notes
+4. [x] Load notes from storage
+5. [ ] Multi-color pens
+6. [ ] Eraser (supports kobo stylus, no icon to select eraser at the moment)
+7. [ ] Clear page/whole notes
 
 ## Features not planned at the moment
 1. Support undo/redo

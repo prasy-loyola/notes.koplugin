@@ -173,17 +173,16 @@ function Notes:showMenu()
       text = _("Save"),
       callback = function()
         UIManager:close(dialog)
-        logger.dbg("Notes: Saving");
+        logger.dbg("NW: Saving");
         if self.currentPath then
           self.notesWidget:saveToDir(self.currentPath);
         else
           self.notesWidget.isRunning = false;
-          logger.dbg("Opening pathchooser");
           local path_chooser = PathChooser:new {
             select_file = false,
-            -- path = "/",
+            path = G_reader_settings:readSetting("home_dir"),
             onConfirm = function(dirPath)
-              logger.info("Selected folder ", dirPath);
+              logger.dbg("NW: Selected folder ", dirPath);
               self.currentPath = dirPath;
               self.notesWidget.isRunning = true;
               self.notesWidget:saveToDir(self.currentPath);
@@ -195,7 +194,30 @@ function Notes:showMenu()
           UIManager:show(path_chooser)
         end
       end,
+    },
+    {
+      text = _("Load"),
+      callback = function()
+        UIManager:close(dialog)
+        logger.dbg("NW: Loading saved notes");
+        self.notesWidget.isRunning = false;
+        local path_chooser = PathChooser:new {
+          select_file = false,
+          path = G_reader_settings:readSetting("home_dir"),
+          onConfirm = function(dirPath)
+            logger.dbg("NW: Selected folder ", dirPath);
+            self.currentPath = dirPath;
+            self.notesWidget.isRunning = true;
+            self.notesWidget:loadNotes(self.currentPath);
+          end,
+          onCancel = function()
+            self.notesWidget.isRunning = true;
+          end
+        }
+        UIManager:show(path_chooser)
+      end,
     }
+
   }
 
   if self.debug_plugin then
