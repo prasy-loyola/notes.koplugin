@@ -9,12 +9,14 @@ local UIManager = require("ui/uimanager")
 local Widget = require("ui/widget/widget")
 local Screen = require("device").screen
 local InputListener = require("./inputlistener")
+local RenderImage = require("ui/renderimage")
 local _ = require("gettext")
 require("./inputlistener")
 
 ---@class BlitBuffer
 ---@field paintRect fun(x: integer, y: integer, w: integer, h:integer, value: any, setter: any)
 ---@field paintRectRGB32 fun(x: integer, y: integer, w: integer, h:integer, value: any, setter: any)
+---@field free fun()
 
 local RED = Blitbuffer.colorFromName("red")
 local WHITE = Blitbuffer.colorFromString("#ffffff")
@@ -33,6 +35,8 @@ local ERASER_BRUSH_SIZE = PEN_BRUSH_SIZE * 3
 ---@field isRunning boolean
 ---@field pages BlitBuffer[]
 ---@field currentPage integer
+---@field saveToDir func(path)
+---@field loadNotes func(path)
 ---@field setDirty fun()
 
 ---@type NotesWidget
@@ -183,6 +187,34 @@ function NotesWidget:paintToBB()
   end);
 end
 
+--- @param directory string
+function NotesWidget:loadNotes(directory)
+  self.currentPath = directory
+  for i, v in ipairs(self.pages) do
+    v:free();
+  end
+  self.pages = {}
+  local loadedAll = false
+  local i = 1
+  while not loadedAll do
+    local filename = (self.currentPath .. '/page-' .. tostring(i) .. '.png')
+    logger.dbg("NW: filename" .. filename)
+    local bb = RenderImage:renderImageFile(filename, false, self.dimen.w, self.dimen.h);
+    if not bb then
+      loadedAll = true
+    end
+    table.insert(self.pages, bb);
+    i = i + 1
+  end
+  if #self.pages < 1 then
+    self:newPage()
+    return
+  end
+  self.currentPage = 1
+  self.bb = self.pages[self.currentPage]
+  self:setDirty()
+end
+
 function NotesWidget:newPage()
   local bb = Blitbuffer.new(self.dimen.w, self.dimen.h, Blitbuffer.TYPE_BBRGB32);
   bb:paintRectRGB32(0, 0, self.dimen.w, self.dimen.h, self.backgroundColor);
@@ -226,7 +258,7 @@ end
 ---Saves the notes to a directory
 ---@param dirPath string
 function NotesWidget:saveToDir(dirPath)
-  logger.info("Got dirpath", dirPath);
+  logger.dbg("NW: Saving to ", dirPath);
   if not dirPath then
     logger.error("dirPath is mandatory");
     return;
