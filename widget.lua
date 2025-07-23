@@ -229,6 +229,10 @@ function NotesWidget:getPageName()
   return _("(" .. tostring(self.currentPage) .. " of " .. tostring(#self.pages) .. ")")
 end
 
+function NotesWidget:clearPage()
+  self.bb:paintRectRGB32(0, 0, self.dimen.w, self.dimen.h, self.backgroundColor);
+end
+
 function NotesWidget:nextPage()
   if self.currentPage == #self.pages then
     self:newPage();
