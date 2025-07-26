@@ -33,10 +33,10 @@ local Notes = WidgetContainer:new {
   name = "notes",
   is_doc_only = false,
 }
-
+local notesWidgetInstance = NotesWidget:new();
 function Notes:init()
   logger.dbg("Notes:init");
-  self.notesWidget = NotesWidget:new();
+  self.notesWidget = notesWidgetInstance;
   self.margin = 10;
   self.debug_plugin = G_reader_settings:readSetting("notes_plugin_debug", false)
   G_reader_settings:saveSetting("notes_plugin_debug", self.debug_plugin)
