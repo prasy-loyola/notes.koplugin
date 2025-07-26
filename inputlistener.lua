@@ -158,7 +158,7 @@ end
 ---@param event Slot
 ---@return TouchEvent
 function InputListener:createTouchEvent(event, time)
-  if not event then
+  if not event or (not event.x) or (not event.y) then
     return {}
   end
   local touchEventType = TouchEventType.PEN_DOWN;
@@ -169,7 +169,7 @@ function InputListener:createTouchEvent(event, time)
 
   local rotation = self.screen:getRotationMode();
 
-  local x, y
+  local x, y = event.x, event.y
   if rotation == self.screen.DEVICE_ROTATED_COUNTER_CLOCKWISE then
     -- 3
     local height = self.screen:getHeight()

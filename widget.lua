@@ -48,14 +48,13 @@ local ERASER_BRUSH_SIZE = PEN_BRUSH_SIZE * 3
 
 ---@type NotesWidget
 local NotesWidget = Widget:extend {
+  padding = 0,
+  topMargin = 0,
+  bordersize = 0,
 }
 
 function NotesWidget:init()
   logger.info("NotesWidget:init()")
-  self.dimen = Geom:new {
-    w = Screen:getSize().w * 0.95,
-    h = Screen:getSize().h * 0.95,
-  };
   self.touchEvents = { {} }
   self.brushSize = 3
   self.backgroundColor = WHITE
@@ -63,14 +62,27 @@ function NotesWidget:init()
   self.strokeDelay = 10 * 1000
   self.strokeTime = 60 * 1000
   self.pages = {}
-  self:newPage()
 end
 
 function NotesWidget:getSize()
   return self.dimen;
 end
 
+function NotesWidget:Initialize()
+  logger.dbg("Before initialize", self)
+  self.dimen = Geom:new {
+    w = Screen:getSize().w - (self.padding * 2) - (self.bordersize * 2),
+    h = Screen:getSize().h - (self.topMargin) - (self.padding * 2) - (self.bordersize * 2),
+  };
+  self:newPage()
+  logger.dbg("after initialize", self)
+  self:setDirty()
+end
+
 function NotesWidget:paintTo(bb, x, y)
+  if not self.bb then
+    self:Initialize(x, y)
+  end
   self.dimen.x = x;
   self.dimen.y = y;
   if not self.dimen or self.dimen.x == 0 or self.dimen.y == 0 then
@@ -186,7 +198,7 @@ function NotesWidget:touchEventListener(tEvent, hook_params)
   if screenCoords.y < 0 then screenCoords.y = 0 end
   screenCoords.w = screenCoords.w + (self.brushSize * 2)
   screenCoords.h = screenCoords.h + (self.brushSize * 2)
-  
+
   self:setDirty(screenCoords)
 end
 
@@ -254,6 +266,10 @@ function NotesWidget:newPage()
 end
 
 function NotesWidget:getPageName()
+  --- not initialized yet
+  if not self.bb then
+    return _("(1 of 1)")
+  end
   return _("(" .. tostring(self.currentPage) .. " of " .. tostring(#self.pages) .. ")")
 end
 

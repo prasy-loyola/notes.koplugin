@@ -37,15 +37,12 @@ local notesWidgetInstance = NotesWidget:new();
 function Notes:init()
   logger.dbg("Notes:init");
   self.notesWidget = notesWidgetInstance;
-  self.margin = 10;
   self.debug_plugin = G_reader_settings:readSetting("notes_plugin_debug", false)
   G_reader_settings:saveSetting("notes_plugin_debug", self.debug_plugin)
 
   self.layout = {}
-  self.width = self.width or math.floor(math.min(Screen:getWidth(), Screen:getHeight()) - self.margin * 2)
   self.name = "Notes";
   self.title_bar = TitleBar:new {
-    width = self.width - Size.border.window * 4,
     with_bottom_line = true,
     title = _("Notes " .. self.notesWidget:getPageName()),
     bottom_v_padding = 0,
@@ -58,7 +55,7 @@ function Notes:init()
     end
   }
 
-  local options = HorizontalGroup:new {
+  self.widgetMenu = HorizontalGroup:new {
     IconButton:new {
       height = 50,
       icon = "chevron.left",
@@ -88,14 +85,11 @@ function Notes:init()
   self.dialog_frame = FrameContainer:new {
     radius = Size.radius.window,
     bordersize = Size.border.window,
-    width = self.width + Size.border.window * 2,
-    padding = 0,
-    margin = self.margin,
     background = Blitbuffer.COLOR_WHITE,
     VerticalGroup:new {
       align = "left",
       self.title_bar,
-      options,
+      self.widgetMenu,
       self.notesWidget,
     }
   }
@@ -131,6 +125,9 @@ end
 function Notes:onNotesStart()
   self.isRunning = true
   self.notesWidget.isRunning = true
+  self.notesWidget.padding = self.dialog_frame.padding
+  self.notesWidget.topMargin = self.title_bar:getHeight() + self.widgetMenu:getSize().h 
+  self.notesWidget.bordersize = self.dialog_frame.bordersize
   UIManager:show(self.notesWidget);
   UIManager:show(self.dialog_frame);
   UIManager:setDirty("ui", "full");
@@ -147,10 +144,13 @@ end
 
 function Notes:onDispatcherRegisterActions()
   Dispatcher:registerAction("show_notes",
-    { category = "none", event = "NotesStart", title = _("Show Notes"), general = true })
-
-  Dispatcher:registerAction("run_notes_test",
-    { category = "none", event = "RunTest", title = _("Run Notes Test"), general = true })
+    { category = "none", event = "NotesStart", title = _("Show Notes"), general = true }
+  )
+  if self.debug_plugin then
+    Dispatcher:registerAction("run_notes_test",
+      { category = "none", event = "RunTest", title = _("Run Notes Test"), general = true }
+    )
+  end
 end
 
 function Notes:addToMainMenu(menu_items)
