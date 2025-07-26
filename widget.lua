@@ -23,8 +23,15 @@ local WHITE = Blitbuffer.colorFromString("#ffffff")
 local PEN_BRUSH_SIZE = 3
 local ERASER_BRUSH_SIZE = PEN_BRUSH_SIZE * 3
 
+---@class Dimension
+---@field x int
+---@field y int
+---@field w int
+---@field h int
+---@field offsetBy  fun(x, y)
+
 ---@class NotesWidget
----@field dimen any
+---@field dimen Dimension
 ---@field touchEvents TouchEvent[][]
 ---@field bb BlitBuffer
 ---@field brushSize integer
@@ -124,7 +131,6 @@ function NotesWidget:touchEventListener(tEvent, hook_params)
   end
   self.penColor = RED
   self.brushSize = PEN_BRUSH_SIZE
-  logger.dbg("widget branch1.1")
   if tEvent.type == InputListener.TouchEventType.ERASER_DOWN then
     self.penColor = WHITE
     self.brushSize = ERASER_BRUSH_SIZE
@@ -146,12 +152,16 @@ function NotesWidget:touchEventListener(tEvent, hook_params)
   end
 
   local touchEvents = self.touchEvents[tEvent.slot]
+  local minX, minY, maxX, maxY = tEvent.x, tEvent.y, tEvent.x, tEvent.y
   table.insert(touchEvents, tEvent)
   if #touchEvents < 2 then
-    self.bb:paintRectRGB32(tx, ty, self.brushSize, self.brushSize, self.penColor);
+    self.bb:paintRectRGB32(tEvent.x, tEvent.y, self.brushSize, self.brushSize, self.penColor);
   else
     local prevTEvent = touchEvents[#touchEvents - 1]
     local tEvent = touchEvents[#touchEvents]
+
+    minX, minY = math.min(tEvent.x, prevTEvent.x), math.min(tEvent.y, prevTEvent.y)
+    maxX, maxY = math.max(tEvent.x, prevTEvent.x), math.max(tEvent.y, prevTEvent.y)
 
     if tEvent.time - prevTEvent.time < self.strokeTime and tEvent.toolType == prevTEvent.toolType then
       self:interPolate(prevTEvent, tEvent);
@@ -159,7 +169,25 @@ function NotesWidget:touchEventListener(tEvent, hook_params)
       self.bb:paintRectRGB32(tEvent.x, tEvent.y, self.brushSize, self.brushSize, self.penColor);
     end
   end
-  self:setDirty()
+
+  --- @type Dimension
+  local affectedArea = Geom:new({
+    x = minX,
+    y = minY,
+    w = maxX - minX,
+    h = maxY - minY,
+  })
+  --- @type Dimension
+  local screenCoords = affectedArea:offsetBy(self.dimen.x, self.dimen.y)
+  screenCoords.x = screenCoords.x - self.brushSize
+  screenCoords.y = screenCoords.y - self.brushSize
+
+  if screenCoords.x < 0 then screenCoords.x = 0 end
+  if screenCoords.y < 0 then screenCoords.y = 0 end
+  screenCoords.w = screenCoords.w + (self.brushSize * 2)
+  screenCoords.h = screenCoords.h + (self.brushSize * 2)
+  
+  self:setDirty(screenCoords)
 end
 
 function NotesWidget:paintToBB()
@@ -253,9 +281,11 @@ function NotesWidget:prevPage()
   end
 end
 
-function NotesWidget:setDirty()
+---
+---@param dimen Dimension
+function NotesWidget:setDirty(dimen)
   UIManager:setDirty(self, function()
-    return "ui", self.dimen
+    return "ui", dimen or self.dimen
   end);
 end
 
@@ -264,13 +294,13 @@ end
 function NotesWidget:saveToDir(dirPath)
   logger.dbg("NW: Saving to ", dirPath);
   if not dirPath then
-    logger.error("dirPath is mandatory");
+    logger.error("NW: dirPath is mandatory");
     return;
   end
 
   for i, bb in ipairs(self.pages) do
     local filePath = dirPath .. "/page-" .. tostring(i) .. ".png";
-    logger.dbg("Writing file", filePath);
+    logger.dbg("NW: Writing file", filePath);
     bb:writePNG(filePath);
   end
 end
