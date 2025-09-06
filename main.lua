@@ -18,6 +18,8 @@ local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local Size = require("ui/size")
 local _ = require("gettext")
 local Screen = require("device").screen
+local LuaSettings = require("luasettings")
+local DataStorage = require("datastorage")
 
 local NotesWidget = require("./widget")
 local InputListener = require("./inputlistener")
@@ -38,8 +40,9 @@ function Notes:init()
   logger.dbg("Notes:init");
   self.notesWidget = notesWidgetInstance;
   self.margin = 10;
-  self.debug_plugin = G_reader_settings:readSetting("notes_plugin_debug", false)
-  G_reader_settings:saveSetting("notes_plugin_debug", self.debug_plugin)
+  self.n_settings = self:readSetting()
+
+  self.last_notes_dir = self.n_settings.data.notes.last_notes_dir or nil;
 
   self.layout = {}
   self.width = self.width or math.floor(math.min(Screen:getWidth(), Screen:getHeight()) - self.margin * 2)
@@ -131,6 +134,10 @@ end
 function Notes:onNotesStart()
   self.isRunning = true
   self.notesWidget.isRunning = true
+  if self.last_notes_dir then
+    self.currentPath = self.last_notes_dir
+    self.notesWidget:loadNotes(self.currentPath);
+  end
   UIManager:show(self.notesWidget);
   UIManager:show(self.dialog_frame);
   UIManager:setDirty("ui", "full");
@@ -157,8 +164,18 @@ function Notes:addToMainMenu(menu_items)
     -- keep_menu_open = true,
     sub_item_table = {
       {
+        text = _("Show Notes"),
+        callback = function()
+          self:onNotesStart()
+        end,
+      },
+      {
         text = _("New Notes"),
         callback = function()
+          self.last_notes_dir = nil
+          self.currentPath = nil
+          self:saveSetting()
+          self.notesWidget:newNotes()
           self:onNotesStart()
         end,
       },
@@ -171,6 +188,20 @@ function Notes:addToMainMenu(menu_items)
       },
     }
   }
+end
+
+function Notes:readSetting()
+  local n_settings = LuaSettings:open(DataStorage:getSettingsDir() .. "/notes.lua")
+  n_settings:readSetting("notes", {})
+  return n_settings
+end
+
+function Notes:saveSetting()
+  local tempsettings = {
+    last_notes_dir = self.last_notes_dir,
+  }
+  self.n_settings:saveSetting("notes", tempsettings)
+  self.n_settings:flush()
 end
 
 function Notes:getLoadNotesDialog(dialog)
@@ -188,6 +219,8 @@ function Notes:getLoadNotesDialog(dialog)
         self.currentPath = dirPath;
         self.notesWidget.isRunning = true;
         self.notesWidget:loadNotes(self.currentPath);
+        self.last_notes_dir = self.currentPath;
+        self:saveSetting()
       end,
       onCancel = function()
         self.notesWidget.isRunning = true;
@@ -217,6 +250,8 @@ function Notes:showMenu()
               self.currentPath = dirPath;
               self.notesWidget.isRunning = true;
               self.notesWidget:saveToDir(self.currentPath);
+              self.last_notes_dir = self.currentPath;
+              self:saveSetting()
             end,
             onCancel = function()
               self.notesWidget.isRunning = true;

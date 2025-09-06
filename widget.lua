@@ -215,6 +215,23 @@ function NotesWidget:paintToBB()
   end);
 end
 
+
+function NotesWidget:newNotes()
+  self.currentPath = nil
+  for i, v in ipairs(self.pages) do
+    v:free();
+  end
+  self.pages = {}
+  if #self.pages < 1 then
+    self:newPage()
+    return
+  end
+  self.currentPage = 1
+  self.bb = self.pages[self.currentPage]
+  self:setDirty()
+
+end
+
 --- @param directory string
 function NotesWidget:loadNotes(directory)
   self.currentPath = directory
