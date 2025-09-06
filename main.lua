@@ -148,27 +148,52 @@ end
 function Notes:onDispatcherRegisterActions()
   Dispatcher:registerAction("show_notes",
     { category = "none", event = "NotesStart", title = _("Show Notes"), general = true })
-
-  Dispatcher:registerAction("run_notes_test",
-    { category = "none", event = "RunTest", title = _("Run Notes Test"), general = true })
 end
 
 function Notes:addToMainMenu(menu_items)
   menu_items.notes = {
     text = _("Notes"),
-    -- sorting_hint = "more_tools",
+    sorting_hint = "tools",
     -- keep_menu_open = true,
-    callback = function()
-      self:onNotesStart()
-    end,
-  }
-  if self.debug_plugin then
-    menu_items.debugnotes = {
-      text = _("Test Notes Plugin"),
-      callback = function()
-        self:onRunTest()
-      end,
+    sub_item_table = {
+      {
+        text = _("New Notes"),
+        callback = function()
+          self:onNotesStart()
+        end,
+      },
+      {
+        text = _("Load Notes"),
+        callback = function()
+          self:onNotesStart()
+          self:getLoadNotesDialog(nil)()
+        end,
+      },
     }
+  }
+end
+
+function Notes:getLoadNotesDialog(dialog)
+  return function()
+    if dialog then
+      UIManager:close(dialog)
+    end
+    logger.dbg("NW: Loading saved notes");
+    self.notesWidget.isRunning = false;
+    local path_chooser = PathChooser:new {
+      select_file = false,
+      path = G_reader_settings:readSetting("home_dir"),
+      onConfirm = function(dirPath)
+        logger.dbg("NW: Selected folder ", dirPath);
+        self.currentPath = dirPath;
+        self.notesWidget.isRunning = true;
+        self.notesWidget:loadNotes(self.currentPath);
+      end,
+      onCancel = function()
+        self.notesWidget.isRunning = true;
+      end
+    }
+    UIManager:show(path_chooser)
   end
 end
 
@@ -203,39 +228,9 @@ function Notes:showMenu()
     },
     {
       text = _("Load"),
-      callback = function()
-        UIManager:close(dialog)
-        logger.dbg("NW: Loading saved notes");
-        self.notesWidget.isRunning = false;
-        local path_chooser = PathChooser:new {
-          select_file = false,
-          path = G_reader_settings:readSetting("home_dir"),
-          onConfirm = function(dirPath)
-            logger.dbg("NW: Selected folder ", dirPath);
-            self.currentPath = dirPath;
-            self.notesWidget.isRunning = true;
-            self.notesWidget:loadNotes(self.currentPath);
-          end,
-          onCancel = function()
-            self.notesWidget.isRunning = true;
-          end
-        }
-        UIManager:show(path_chooser)
-      end,
+      callback = self:getLoadNotesDialog(dialog)
     }
-
   }
-
-  if self.debug_plugin then
-    table.insert(buttons, {
-      text = _("Test"),
-      callback = function()
-        UIManager:close(dialog)
-        self:onRunTest();
-      end
-    }
-    )
-  end
 
   dialog = ButtonDialog:new {
     shrink_unneeded_width = true,
