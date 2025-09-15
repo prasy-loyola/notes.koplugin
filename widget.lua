@@ -262,6 +262,11 @@ function NotesWidget:setTemplate(template_path)
   self:setDirty()
 end
 
+function NotesWidget:removeTemplate()
+  self.pages[self.currentPage].templatePath = nil;
+  self:setDirty()
+end
+
 function NotesWidget:newNotes()
   self.currentPath = nil
   for i, v in ipairs(self.pages) do

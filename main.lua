@@ -90,6 +90,13 @@ function Notes:init()
         self.notesWidget:clearPage();
         self.notesWidget:setDirty();
       end
+    },
+    IconButton:new {
+      height = 50,
+      icon = "align.justify",
+      callback = function()
+        self.notesWidget:removeTemplate();
+      end
     }
   }
 
