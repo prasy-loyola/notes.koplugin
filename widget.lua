@@ -20,6 +20,7 @@ require("./inputlistener")
 
 local RED = Blitbuffer.colorFromName("red")
 local WHITE = Blitbuffer.colorFromString("#ffffff")
+local TRANSPARENT_ALPHA = Blitbuffer.colorFromString("#00000000")
 local PEN_BRUSH_SIZE = 3
 local ERASER_BRUSH_SIZE = PEN_BRUSH_SIZE * 3
 
@@ -34,6 +35,7 @@ local ERASER_BRUSH_SIZE = PEN_BRUSH_SIZE * 3
 ---@field dimen Dimension
 ---@field touchEvents TouchEvent[][]
 ---@field bb BlitBuffer
+---@field template_bb BlitBuffer
 ---@field brushSize integer
 ---@field penColor integer
 ---@field backgroundColor integer
@@ -63,6 +65,7 @@ function NotesWidget:init()
   self.strokeDelay = 10 * 1000
   self.strokeTime = 60 * 1000
   self.pages = {}
+  self.template_bb = nil
   self:newPage()
 end
 
@@ -80,7 +83,10 @@ function NotesWidget:paintTo(bb, x, y)
     self:newPage();
   end
   logger.dbg("NotesWidget:paintTo", x, y);
-  bb:blitFrom(self.bb, x, y, 0, 0, self.dimen.w, self.dimen.h)
+  if self.template_bb then
+    bb:blitFrom(self.template_bb, x, y, 0, 0, self.dimen.w, self.dimen.h)
+  end
+  bb:alphablitFrom(self.bb, x, y, 0, 0, self.dimen.w, self.dimen.h)
   logger.dbg("NotesWidget:paintTo dimen: ", self.dimen);
 end
 
@@ -132,7 +138,7 @@ function NotesWidget:touchEventListener(tEvent, hook_params)
   self.penColor = RED
   self.brushSize = PEN_BRUSH_SIZE
   if tEvent.type == InputListener.TouchEventType.ERASER_DOWN then
-    self.penColor = WHITE
+    self.penColor = TRANSPARENT_ALPHA
     self.brushSize = ERASER_BRUSH_SIZE
   end
 
@@ -186,7 +192,7 @@ function NotesWidget:touchEventListener(tEvent, hook_params)
   if screenCoords.y < 0 then screenCoords.y = 0 end
   screenCoords.w = screenCoords.w + (self.brushSize * 2)
   screenCoords.h = screenCoords.h + (self.brushSize * 2)
-  
+
   self:setDirty(screenCoords)
 end
 
@@ -210,11 +216,19 @@ function NotesWidget:paintToBB()
     end
   end
 
-  UIManager:setDirty(self, function()
-    return "ui", self.dimen
-  end);
+  self:setDirty()
 end
 
+---@param template_path string
+function NotesWidget:setTemplate(template_path)
+  local template_bb = RenderImage:renderImageFile(template_path, false, self.dimen.w, self.dimen.h);
+  if not template_bb then
+    self.template_bb = nil
+  else
+    self.template_bb = template_bb
+  end
+  self:setDirty()
+end
 
 function NotesWidget:newNotes()
   self.currentPath = nil
@@ -229,7 +243,6 @@ function NotesWidget:newNotes()
   self.currentPage = 1
   self.bb = self.pages[self.currentPage]
   self:setDirty()
-
 end
 
 --- @param directory string
@@ -261,8 +274,14 @@ function NotesWidget:loadNotes(directory)
 end
 
 function NotesWidget:newPage()
+  logger.info("[NotesWidget] NewPage")
+  if not self.template_bb then
+    self.template_bb = Blitbuffer.new(self.dimen.w, self.dimen.h, Blitbuffer.TYPE_BBRGB32);
+    self.template_bb:paintRectRGB32(0, 0, self.dimen.w, self.dimen.h, self.backgroundColor);
+  end
   local bb = Blitbuffer.new(self.dimen.w, self.dimen.h, Blitbuffer.TYPE_BBRGB32);
-  bb:paintRectRGB32(0, 0, self.dimen.w, self.dimen.h, self.backgroundColor);
+  bb:paintRectRGB32(0, 0, self.dimen.w, self.dimen.h, TRANSPARENT_ALPHA);
+
   table.insert(self.pages, bb);
   self.currentPage = #self.pages
   self.bb = self.pages[self.currentPage]
@@ -275,7 +294,7 @@ function NotesWidget:getPageName()
 end
 
 function NotesWidget:clearPage()
-  self.bb:paintRectRGB32(0, 0, self.dimen.w, self.dimen.h, self.backgroundColor);
+  self.bb:paintRectRGB32(0, 0, self.dimen.w, self.dimen.h, TRANSPARENT_ALPHA);
 end
 
 function NotesWidget:nextPage()
