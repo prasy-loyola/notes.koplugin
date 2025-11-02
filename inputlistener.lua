@@ -16,7 +16,6 @@ local Input = require("device/input")
 -- so that general system gestures work when the widget is not displayed
 --]]
 
---#region Types
 ---@enum EventType
 local events = {
   EV_SYN = 0,
@@ -56,34 +55,22 @@ local mtCodes = {
 ---@enum TouchEventType
 local TouchEventType = {
   PEN_DOWN = 0,
-  PEN_UP = 1,
-  PEN_HOVER = 2,
-  ERASER_DOWN = 3,
-  ERASER_UP = 4,
-  ERASER_HOVER = 5,
+  ERASER_DOWN = 1,
 }
-
 TouchEventType.PrintNames = {
   [TouchEventType.PEN_DOWN] = "PEN_DOWN",
-  [TouchEventType.PEN_UP] = "PEN_UP",
-  [TouchEventType.PEN_HOVER] = "PEN_HOVER",
   [TouchEventType.ERASER_DOWN] = "ERASER_DOWN",
-  [TouchEventType.ERASER_UP] = "ERASER_UP",
-  [TouchEventType.ERASER_HOVER] = "ERASER_HOVER",
 }
-
 
 ---@enum ToolType
 local ToolType = {
   FINGER = 0,
   PEN = 1,
 }
-
 ToolType.PrintNames = {
   [ToolType.FINGER] = "FINGER",
   [ToolType.PEN] = "PEN",
 }
-
 
 ---@enum ToolSubType
 local ToolSubType = {
@@ -91,8 +78,6 @@ local ToolSubType = {
   PEN = 1,
   ERASER = 2,
 }
-
-
 ToolSubType.PrintNames = {
   [ToolSubType.FINGER] = "FINGER",
   [ToolSubType.PEN] = "PEN",
@@ -107,12 +92,8 @@ ToolSubType.PrintNames = {
 ---@field toolType ToolType
 ---@field slot integer
 local TouchEvent = {}
-
---#endregion
-
 function TouchEvent:__tostring()
-  return "ToolType:" ..
-      ToolType.PrintNames[self.toolType] ..
+  return "ToolType:" .. ToolType.PrintNames[self.toolType] ..
       " Type:" .. TouchEventType.PrintNames[self.type] ..
       " x:" .. (self.x and tostring(self.x) or "nil") ..
       " y:" .. (self.y and tostring(self.y) or "nil") ..
@@ -135,24 +116,20 @@ end
 
 ---@class InputListener
 ---@field listener fun(touchEvent: TouchEvent, hook_param: any)
----@field slots Slot[]
----@field current_slot Slot
----@field penHovering boolean
+---@field screen
 local InputListener = {
   listener = noOpListener,
   screen = Screen
 }
 
 InputListener.ToolSubType = ToolSubType;
-
+InputListener.TouchEventType = TouchEventType
 
 ---This function needs to be called when the touch events need to be processed by the widget, normally when widget is displayed
 function InputListener:setupGestureDetector()
   if not self.original_feedEvent then
     self.original_feedEvent = Device.input.gesture_detector.feedEvent
   end
-
-  logger.dbg(self.original_feedEvent)
 
   if self.original_feedEvent then
     Device.input.gesture_detector.feedEvent = function(s, ev)
@@ -208,7 +185,8 @@ function InputListener:createTouchEvent(event, time)
     x, y = event.x, event.y
   end
 
-  if x > self.screen:getWidth() or y > self.screen:getHeight() then
+  if (not (self.screen:getWidth() and self.screen:getHeight() and x and y))
+      or x > self.screen:getWidth() or y > self.screen:getHeight() then
     return nil
   end
 
@@ -258,8 +236,6 @@ function InputListener:__feedEvent(events)
       end
     end
   end
-
-
   return {}
 end
 
@@ -281,7 +257,5 @@ function InputListener:eventAdjustmentHook(input, event, hook_params)
     end
   end
 end
-
-InputListener.TouchEventType = TouchEventType
 
 return InputListener
