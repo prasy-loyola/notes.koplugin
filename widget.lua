@@ -12,13 +12,14 @@ local InputListener = require("./inputlistener")
 local RenderImage = require("ui/renderimage")
 local _ = require("gettext")
 require("./inputlistener")
+local LuaSettings = require("luasettings")
 
 ---@class BlitBuffer
 ---@field paintRect fun(x: integer, y: integer, w: integer, h:integer, value: any, setter: any)
 ---@field paintRectRGB32 fun(x: integer, y: integer, w: integer, h:integer, value: any, setter: any)
 ---@field free fun()
 
-local RED = Blitbuffer.colorFromName("red")
+local PEN_COLOR = Blitbuffer.colorFromName("red")
 local WHITE = Blitbuffer.colorFromString("#ffffff")
 local TRANSPARENT_ALPHA = Blitbuffer.colorFromString("#00000000")
 local PEN_BRUSH_SIZE = 3
@@ -90,7 +91,7 @@ function NotesWidget:init()
   self.touchEvents = { {} }
   self.brushSize = 3
   self.backgroundColor = WHITE
-  self.penColor = RED
+  self.penColor = PEN_COLOR
   self.strokeDelay = 10 * 1000
   self.strokeTime = 60 * 1000
   self.pages = {}
@@ -115,6 +116,10 @@ function NotesWidget:paintTo(bb, x, y)
 
   if page.templatePath then
     bb:blitFrom(self:get_template_bb(page.templatePath), x, y, 0, 0, self.dimen.w, self.dimen.h)
+  end
+  if not page._bb then
+    logger.warn("NotesWidget:paintTo didn't have bb in page: ", page, self.pages, self.currentPage);
+    return
   end
   bb:alphablitFrom(page._bb, x, y, 0, 0, self.dimen.w, self.dimen.h)
   logger.dbg("NotesWidget:paintTo dimen: ", self.dimen);
@@ -168,7 +173,7 @@ function NotesWidget:touchEventListener(tEvent, hook_params)
   if not self.isRunning or not tEvent then
     return
   end
-  self.penColor = RED
+  self.penColor = PEN_COLOR
   self.brushSize = PEN_BRUSH_SIZE
   if tEvent.type == InputListener.TouchEventType.ERASER_DOWN then
     self.penColor = TRANSPARENT_ALPHA
@@ -192,7 +197,7 @@ function NotesWidget:touchEventListener(tEvent, hook_params)
 
   local touchEvents = self.touchEvents[tEvent.slot]
   local minX, minY, maxX, maxY = tEvent.x, tEvent.y, tEvent.x, tEvent.y
-  
+
   local bb = self.pages[self.currentPage]._bb;
   table.insert(touchEvents, tEvent)
   if #touchEvents < 2 then
@@ -285,6 +290,8 @@ end
 
 --- @param directory string
 function NotesWidget:loadNotes(directory)
+  local n_meta = LuaSettings:open(directory .. "/.notes_meta.lua")
+  n_meta:readSetting("notes", { pages = {} })
   self.currentPath = directory
   for i, v in ipairs(self.pages) do
     if v._bb then
@@ -300,13 +307,20 @@ function NotesWidget:loadNotes(directory)
     local bb = RenderImage:renderImageFile(filename, false, self.dimen.w, self.dimen.h);
     if not bb then
       loadedAll = true
-    end
-    table.insert(self.pages, { _bb = bb });
+    else 
+      table.insert(self.pages, { _bb = bb });
+    end 
     i = i + 1
   end
   if #self.pages < 1 then
     self:newPage()
     return
+  else
+    for i, v in ipairs(self.pages) do
+      if n_meta.data.notes.pages[i] then
+        self.pages.templatePath = n_meta.data.notes.pages[i].templatePath
+      end
+    end
   end
   self.currentPage = 1
   self:setDirty()
@@ -376,13 +390,23 @@ function NotesWidget:saveToDir(dirPath)
     return;
   end
 
+  local n_meta = LuaSettings:open(dirPath .. "/.notes_meta.lua")
+  n_meta:readSetting("notes", { pages = {} })
+  local meta = {
+    pages = {}
+  }
   for i, v in ipairs(self.pages) do
     local filePath = dirPath .. "/page-" .. tostring(i) .. ".png";
     logger.dbg("NW: Writing file", filePath);
     if v._bb then
       v._bb:writePNG(filePath);
     end
+    meta.pages[i] = {
+      templatePath = v.templatePath
+    }
   end
+  n_meta:saveSetting("notes", meta)
+  n_meta:flush()
 end
 
 return NotesWidget
