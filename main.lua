@@ -202,16 +202,16 @@ function Notes:addToMainMenu(menu_items)
       {
         text = _("Select template"),
         callback = function()
-              local path_chooser;
-              path_chooser = PathChooser:new {
-                path = self.templates_dir or home_dir,
-                select_file = true,
-                onConfirm = function(dirPath)
-                  self.notesWidget:setTemplate(dirPath)
-                end,
-              }
-              UIManager:show(path_chooser)
-       end,
+          local path_chooser;
+          path_chooser = PathChooser:new {
+            path = self.templates_dir or home_dir,
+            select_file = true,
+            onConfirm = function(dirPath)
+              self.notesWidget:setTemplate(dirPath)
+            end,
+          }
+          UIManager:show(path_chooser)
+        end,
       },
       {
         text = _("Settings"),
