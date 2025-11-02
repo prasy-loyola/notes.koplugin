@@ -35,6 +35,7 @@ local ERASER_BRUSH_SIZE = PEN_BRUSH_SIZE * 3
 ---@class Page
 ---@field _bb BlitBuffer
 ---@field templatePath string
+---@field templateEnabled boolean
 ---
 
 ---@class NotesWidget
@@ -51,7 +52,10 @@ local ERASER_BRUSH_SIZE = PEN_BRUSH_SIZE * 3
 ---@field saveToDir func(path)
 ---@field loadNotes func(path)
 ---@field setDirty fun()
+---@field toggleTemplate fun()
+---@field removeTemplate fun()
 
+---@type map<string,BlitBuffer>
 local TEMPLATES = {
 }
 
@@ -62,8 +66,10 @@ local NotesWidget = Widget:extend {
 local BLANK_TEMPLATE_PATH = "::BLANK::";
 
 ---@param templatePath string
-function NotesWidget:get_template_bb(templatePath)
-  if not templatePath then
+---@param templateEnabled boolean
+---@return BlitBuffer
+function NotesWidget:get_template_bb(templatePath, templateEnabled)
+  if not (templatePath and templateEnabled) then
     templatePath = BLANK_TEMPLATE_PATH
   end
 
@@ -115,7 +121,7 @@ function NotesWidget:paintTo(bb, x, y)
   local page = self.pages[self.currentPage];
 
   if page.templatePath then
-    bb:blitFrom(self:get_template_bb(page.templatePath), x, y, 0, 0, self.dimen.w, self.dimen.h)
+    bb:blitFrom(self:get_template_bb(page.templatePath, page.templateEnabled), x, y, 0, 0, self.dimen.w, self.dimen.h)
   end
   if not page._bb then
     logger.warn("NotesWidget:paintTo didn't have bb in page: ", page, self.pages, self.currentPage);
@@ -272,6 +278,11 @@ function NotesWidget:removeTemplate()
   self:setDirty()
 end
 
+function NotesWidget:toggleTemplate()
+  self.pages[self.currentPage].templateEnabled = not self.pages[self.currentPage].templateEnabled
+  self:setDirty()
+end
+
 function NotesWidget:newNotes()
   self.currentPath = nil
   for i, v in ipairs(self.pages) do
@@ -307,9 +318,9 @@ function NotesWidget:loadNotes(directory)
     local bb = RenderImage:renderImageFile(filename, false, self.dimen.w, self.dimen.h);
     if not bb then
       loadedAll = true
-    else 
+    else
       table.insert(self.pages, { _bb = bb });
-    end 
+    end
     i = i + 1
   end
   if #self.pages < 1 then
@@ -336,6 +347,7 @@ function NotesWidget:newPage()
   local page = {
     _bb = bb,
     templatePath = nil,
+    templateEnabled = false,
   };
   if self.pages[#self.pages] then
     page.templatePath = self.pages[#self.pages].templatePath
@@ -402,7 +414,8 @@ function NotesWidget:saveToDir(dirPath)
       v._bb:writePNG(filePath);
     end
     meta.pages[i] = {
-      templatePath = v.templatePath
+      templatePath = v.templatePath,
+      templateEnabled = v.templateEnabled
     }
   end
   n_meta:saveSetting("notes", meta)

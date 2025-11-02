@@ -95,7 +95,7 @@ function Notes:init()
       height = 50,
       icon = "align.justify",
       callback = function()
-        self.notesWidget:removeTemplate();
+        self.notesWidget:toggleTemplate();
       end
     }
   }
