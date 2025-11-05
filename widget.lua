@@ -330,7 +330,8 @@ function NotesWidget:loadNotes(directory)
   else
     for i, v in ipairs(self.pages) do
       if n_meta.data.notes.pages[i] then
-        self.pages.templatePath = n_meta.data.notes.pages[i].templatePath
+        self.pages[i].templatePath = n_meta.data.notes.pages[i].templatePath
+        self.pages[i].templateEnabled = n_meta.data.notes.pages[i].templateEnabled
       end
     end
   end
