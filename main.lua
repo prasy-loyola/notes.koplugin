@@ -200,20 +200,6 @@ function Notes:addToMainMenu(menu_items)
         end,
       },
       {
-        text = _("Select template"),
-        callback = function()
-          local path_chooser;
-          path_chooser = PathChooser:new {
-            path = self.templates_dir or home_dir,
-            select_file = true,
-            onConfirm = function(dirPath)
-              self.notesWidget:setTemplate(dirPath)
-            end,
-          }
-          UIManager:show(path_chooser)
-        end,
-      },
-      {
         text = _("Settings"),
         sub_item_table = {
           {
@@ -280,7 +266,7 @@ end
 
 function Notes:showMenu()
   local dialog
-  local buttons = {
+  local saveLoadButtons = {
     {
       text = _("Save"),
       callback = function()
@@ -315,9 +301,27 @@ function Notes:showMenu()
     },
   }
 
+  local selectTemplateButton = {
+    {
+      text = _("Select template"),
+      callback = function()
+        UIManager:close(dialog)
+        local path_chooser;
+        path_chooser = PathChooser:new {
+          path = self.templates_dir or home_dir,
+          select_file = true,
+          onConfirm = function(dirPath)
+            self.notesWidget:setTemplate(dirPath)
+          end,
+        }
+        UIManager:show(path_chooser)
+      end,
+    },
+  }
+
   dialog = ButtonDialog:new {
     shrink_unneeded_width = true,
-    buttons = { buttons },
+    buttons = { saveLoadButtons, selectTemplateButton },
     anchor = function()
       return self.title_bar.left_button.image.dimen
     end,

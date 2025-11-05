@@ -270,6 +270,7 @@ end
 ---@param template_path string
 function NotesWidget:setTemplate(template_path)
   self.pages[self.currentPage].templatePath = template_path;
+  self.pages[self.currentPage].templateEnabled = true;
   self:setDirty()
 end
 
