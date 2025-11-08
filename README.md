@@ -6,7 +6,7 @@
 Download this project as .zip file and extract into KOReader's plugin directory
 
 ## How to use it?
-Once the app is loaded, you will see the `NEW: Notes` option under the first icon at the top-left. 
+Once the app is loaded, you will see the `NEW: Notes` option under the tools menu. 
 
 Draw using a stylus/hand in the canvas area.
 
@@ -25,6 +25,7 @@ Use the hamburger menu at the top-left to save the notes to a directory as png f
 5. [ ] Multi-color pens
 6. [ ] Eraser (supports kobo stylus, no icon to select eraser at the moment)
 7. [x] Clear page ~~/whole notes~~
+8. [x] Setup a background / template for page
 
 ## Features not planned at the moment
 1. Support undo/redo
@@ -37,5 +38,11 @@ Use the hamburger menu at the top-left to save the notes to a directory as png f
 1. I am using my `Kobo Libra 2 Colour` with `Kobo stylus` for development and testing
 2. I have an old `Samsung Galaxy Tab 3` and `stylus` which I can use to test Android (At the moment the app is making KOReader app itself to crash)
 
-## Known Issues
-1. Touch input detection is not perfect, as I am reading raw events from the kernel and parsing it on my own which might not work well with all devices.
+## How does it work 
+
+When the plugin is visible, the gesture-detector in the core device/input  object is swapped out with a an interceptor, to get access to the touch events parsed by it.
+The reason we have to do this is because the core doesn't give a mechanism to read the parsed touch events from input module.
+
+
+# Known Issues
+1. The Koreader app crashes in Android after using the plugin for some time. Not have had the time to debug that. 
