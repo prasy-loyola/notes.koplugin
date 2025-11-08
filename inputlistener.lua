@@ -1,8 +1,20 @@
 local logger = require("logger")
 local Device = require("device")
 local Screen = require("device").screen
-
 local Input = require("device/input")
+
+--[[
+-- Parsing raw Kernel events is hard and needs to be supportd for every device.
+-- Device.Input module in Koreader core already parses the raw kernel events
+-- and creates a TouchEvent object with multiple slots wherever multi touch is supported
+-- Koreader core doesn't provide a way to read these parsed events directly, so
+-- what we do is we swap out the GestureDetector inside the Device.input with a function
+-- which feeds the parsed events into our own listener, and we are free to use these
+-- events to draw on the buffer.
+--
+-- We have to be careful to put back the original gesture_detector when we don't show the widget
+-- so that general system gestures work when the widget is not displayed
+--]]
 
 ---@enum EventType
 local events = {
@@ -18,7 +30,7 @@ local mtCodes = {
   ABS_MT_POSITION_Y = 54,
   ABS_MT_TOOL_TYPE = 55,
   ABS_MT_TRACKING_ID = 57,
-  Eraser = 331,
+  KOBO_STYLUS_ERASER = 331,
 }
 
 ---@class Time
@@ -43,34 +55,22 @@ local mtCodes = {
 ---@enum TouchEventType
 local TouchEventType = {
   PEN_DOWN = 0,
-  PEN_UP = 1,
-  PEN_HOVER = 2,
-  ERASER_DOWN = 3,
-  ERASER_UP = 4,
-  ERASER_HOVER = 5,
+  ERASER_DOWN = 1,
 }
-
 TouchEventType.PrintNames = {
   [TouchEventType.PEN_DOWN] = "PEN_DOWN",
-  [TouchEventType.PEN_UP] = "PEN_UP",
-  [TouchEventType.PEN_HOVER] = "PEN_HOVER",
   [TouchEventType.ERASER_DOWN] = "ERASER_DOWN",
-  [TouchEventType.ERASER_UP] = "ERASER_UP",
-  [TouchEventType.ERASER_HOVER] = "ERASER_HOVER",
 }
-
 
 ---@enum ToolType
 local ToolType = {
   FINGER = 0,
   PEN = 1,
 }
-
 ToolType.PrintNames = {
   [ToolType.FINGER] = "FINGER",
   [ToolType.PEN] = "PEN",
 }
-
 
 ---@enum ToolSubType
 local ToolSubType = {
@@ -78,8 +78,6 @@ local ToolSubType = {
   PEN = 1,
   ERASER = 2,
 }
-
-
 ToolSubType.PrintNames = {
   [ToolSubType.FINGER] = "FINGER",
   [ToolSubType.PEN] = "PEN",
@@ -94,10 +92,8 @@ ToolSubType.PrintNames = {
 ---@field toolType ToolType
 ---@field slot integer
 local TouchEvent = {}
-
 function TouchEvent:__tostring()
-  return "ToolType:" ..
-      ToolType.PrintNames[self.toolType] ..
+  return "ToolType:" .. ToolType.PrintNames[self.toolType] ..
       " Type:" .. TouchEventType.PrintNames[self.type] ..
       " x:" .. (self.x and tostring(self.x) or "nil") ..
       " y:" .. (self.y and tostring(self.y) or "nil") ..
@@ -120,36 +116,37 @@ end
 
 ---@class InputListener
 ---@field listener fun(touchEvent: TouchEvent, hook_param: any)
----@field slots Slot[]
----@field current_slot Slot
----@field penHovering boolean
+---@field screen
 local InputListener = {
   listener = noOpListener,
   screen = Screen
 }
 
 InputListener.ToolSubType = ToolSubType;
-function InputListener:cleanupGestureDetector()
-  if not self.original_feedEvent then
-    Input.gesture_detector.feedEvent = self.original_feedEvent
-  end
-end
+InputListener.TouchEventType = TouchEventType
 
+---This function needs to be called when the touch events need to be processed by the widget, normally when widget is displayed
 function InputListener:setupGestureDetector()
   if not self.original_feedEvent then
     self.original_feedEvent = Device.input.gesture_detector.feedEvent
   end
 
-  logger.dbg(self.original_feedEvent)
-
   if self.original_feedEvent then
     Device.input.gesture_detector.feedEvent = function(s, ev)
-      InputListener:feedEvent(ev);
+      self:__feedEvent(ev);
       return self.original_feedEvent(s, ev);
     end
   end
 end
 
+---This function needs to be called when we no longer want to process the touch events
+function InputListener:cleanupGestureDetector()
+  if not self.original_feedEvent then
+    Device.input.gesture_detector.feedEvent = self.original_feedEvent
+  end
+end
+
+---Set the listener to receive the TouchEvents
 ---@param listener fun(touchEvent: TouchEvent)
 function InputListener:setListener(listener)
   self.listener = listener
@@ -188,7 +185,8 @@ function InputListener:createTouchEvent(event, time)
     x, y = event.x, event.y
   end
 
-  if x > self.screen:getWidth() or y > self.screen:getHeight() then
+  if (not (self.screen:getWidth() and self.screen:getHeight() and x and y))
+      or x > self.screen:getWidth() or y > self.screen:getHeight() then
     return nil
   end
 
@@ -217,7 +215,7 @@ function print_objs(...)
   return printResult
 end
 
-function InputListener:feedEvent(events)
+function InputListener:__feedEvent(events)
   logger.dbg("NW: Got Events: ", #events)
 
   for _, ev in ipairs(events) do
@@ -238,43 +236,7 @@ function InputListener:feedEvent(events)
       end
     end
   end
-
-
   return {}
-end
-
-function InputListener:runTest(input, hook_params)
-  local f, err, str;
-  f, err = io.open('/mnt/onboard/.adds/koreader/plugins/notes.koplugin/touch-input.csv', 'r');
-  if not f then
-    logger.err('Couldnt open file');
-    return
-  end
-  str, err = f:read("*a")
-  if not str then
-    logger.err('Couldnt read file');
-    return
-  end
-  logger.info("Read touch-input.csv")
-
-  local starting_tracking_id = self.last_tracking_id + 1
-  for type, code, value, sec, usec in string.gmatch(str, '(%d+),(%d+),([-%d]+),(%d+),(%d+)[\r\n]+') do
-    local event = {
-      type = tonumber(type),
-      code = tonumber(code),
-      value = tonumber(value),
-      time = {
-        sec = tonumber(sec),
-        usec = tonumber(usec)
-      }
-    }
-    if event.type == 3 and event.code == 57 then
-      event.value = starting_tracking_id
-    end
-    logger.dbg('Read TEV:' .. event.type .. ',' .. event.code ..
-      ',' .. event.value .. ',' .. event.time.sec .. ',' .. event.time.usec)
-    self:eventAdjustmentHook(input, event, hook_params)
-  end
 end
 
 ---An event listener to listen to kernel events directly before being fed into gestureDetector
@@ -282,18 +244,18 @@ end
 ---@param event KernelEvent
 ---@param hook_params any
 function InputListener:eventAdjustmentHook(input, event, hook_params)
-  if event.code == mtCodes.ABS_MT_TRACKING_ID then
-    self.current_tracking_id = event.value
-  end
+  if Device.isKobo then
+    if event.code == mtCodes.ABS_MT_TRACKING_ID then
+      self.current_tracking_id = event.value
+    end
 
-  if event.code == mtCodes.Eraser and event.value == 1 then
-    logger.dbg("NW: Setting subtool as Eraser")
-    Device.input:setCurrentMtSlotChecked("subtool", ToolSubType.ERASER)
-    self.eraser_id = self.current_tracking_id
-    logger.dbg("NW: eraser_id:" .. self.eraser_id)
+    if event.code == mtCodes.KOBO_STYLUS_ERASER and event.value == 1 then
+      logger.dbg("NW: Setting subtool as Eraser")
+      Device.input:setCurrentMtSlotChecked("subtool", ToolSubType.ERASER)
+      self.eraser_id = self.current_tracking_id
+      logger.dbg("NW: eraser_id:" .. self.eraser_id)
+    end
   end
 end
-
-InputListener.TouchEventType = TouchEventType
 
 return InputListener

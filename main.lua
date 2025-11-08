@@ -18,9 +18,14 @@ local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local Size = require("ui/size")
 local _ = require("gettext")
 local Screen = require("device").screen
+local LuaSettings = require("luasettings")
+local DataStorage = require("datastorage")
 
 local NotesWidget = require("./widget")
 local InputListener = require("./inputlistener")
+local home_dir = nil
+local FFIUtil = require("ffi/util")
+local T = FFIUtil.template
 
 ---@class Notes
 ---@field margin int
@@ -36,10 +41,13 @@ local Notes = WidgetContainer:new {
 local notesWidgetInstance = NotesWidget:new();
 function Notes:init()
   logger.dbg("Notes:init");
+  home_dir = G_reader_settings:readSetting("home_dir")
   self.notesWidget = notesWidgetInstance;
   self.margin = 10;
-  self.debug_plugin = G_reader_settings:readSetting("notes_plugin_debug", false)
-  G_reader_settings:saveSetting("notes_plugin_debug", self.debug_plugin)
+  self.n_settings = self:readSetting()
+
+  self.last_notes_dir = self.n_settings.data.notes.last_notes_dir or nil;
+  self.templates_dir = self.n_settings.data.notes.templates_dir or nil;
 
   self.layout = {}
   self.width = self.width or math.floor(math.min(Screen:getWidth(), Screen:getHeight()) - self.margin * 2)
@@ -81,6 +89,13 @@ function Notes:init()
       callback = function()
         self.notesWidget:clearPage();
         self.notesWidget:setDirty();
+      end
+    },
+    IconButton:new {
+      height = 50,
+      icon = "align.justify",
+      callback = function()
+        self.notesWidget:toggleTemplate();
       end
     }
   }
@@ -131,6 +146,10 @@ end
 function Notes:onNotesStart()
   self.isRunning = true
   self.notesWidget.isRunning = true
+  if self.last_notes_dir then
+    self.currentPath = self.last_notes_dir
+    self.notesWidget:loadNotes(self.currentPath);
+  end
   UIManager:show(self.notesWidget);
   UIManager:show(self.dialog_frame);
   UIManager:setDirty("ui", "full");
@@ -148,33 +167,106 @@ end
 function Notes:onDispatcherRegisterActions()
   Dispatcher:registerAction("show_notes",
     { category = "none", event = "NotesStart", title = _("Show Notes"), general = true })
-
-  Dispatcher:registerAction("run_notes_test",
-    { category = "none", event = "RunTest", title = _("Run Notes Test"), general = true })
 end
 
 function Notes:addToMainMenu(menu_items)
   menu_items.notes = {
     text = _("Notes"),
-    -- sorting_hint = "more_tools",
+    sorting_hint = "tools",
     -- keep_menu_open = true,
-    callback = function()
-      self:onNotesStart()
-    end,
-  }
-  if self.debug_plugin then
-    menu_items.debugnotes = {
-      text = _("Test Notes Plugin"),
-      callback = function()
-        self:onRunTest()
-      end,
+    sub_item_table = {
+      {
+        text = _("Show Notes"),
+        callback = function()
+          self:onNotesStart()
+        end,
+      },
+      {
+        text = _("New Notes"),
+        callback = function()
+          self.last_notes_dir = nil
+          self.currentPath = nil
+          self:saveSetting()
+          self.notesWidget:newNotes()
+          self:onNotesStart()
+        end,
+      },
+      {
+        text = _("Load Notes"),
+        separator = true,
+        callback = function()
+          self:onNotesStart()
+          self:getLoadNotesDialog(nil)()
+        end,
+      },
+      {
+        text = _("Settings"),
+        sub_item_table = {
+          {
+            text = T(_("Templates dir.: %1"), _(self.templates_dir or "not set")),
+            callback = function()
+              local path_chooser;
+              path_chooser = PathChooser:new {
+                path = home_dir,
+                select_file = false,
+                onConfirm = function(dirPath)
+                  self.templates_dir = dirPath;
+                  self:saveSetting()
+                end,
+              }
+              UIManager:show(path_chooser)
+            end,
+          }
+        }
+      },
     }
+  }
+end
+
+function Notes:readSetting()
+  local n_settings = LuaSettings:open(DataStorage:getSettingsDir() .. "/notes.lua")
+  n_settings:readSetting("notes", {})
+  return n_settings
+end
+
+function Notes:saveSetting()
+  local tempsettings = {
+    last_notes_dir = self.last_notes_dir,
+    templates_dir = self.templates_dir,
+  }
+  self.n_settings:saveSetting("notes", tempsettings)
+  self.n_settings:flush()
+end
+
+function Notes:getLoadNotesDialog(dialog)
+  return function()
+    if dialog then
+      UIManager:close(dialog)
+    end
+    logger.dbg("NW: Loading saved notes");
+    self.notesWidget.isRunning = false;
+    local path_chooser = PathChooser:new {
+      select_file = false,
+      path = home_dir,
+      onConfirm = function(dirPath)
+        logger.dbg("NW: Selected folder ", dirPath);
+        self.currentPath = dirPath;
+        self.notesWidget.isRunning = true;
+        self.notesWidget:loadNotes(self.currentPath);
+        self.last_notes_dir = self.currentPath;
+        self:saveSetting()
+      end,
+      onCancel = function()
+        self.notesWidget.isRunning = true;
+      end
+    }
+    UIManager:show(path_chooser)
   end
 end
 
 function Notes:showMenu()
   local dialog
-  local buttons = {
+  local saveLoadButtons = {
     {
       text = _("Save"),
       callback = function()
@@ -186,12 +278,14 @@ function Notes:showMenu()
           self.notesWidget.isRunning = false;
           local path_chooser = PathChooser:new {
             select_file = false,
-            path = G_reader_settings:readSetting("home_dir"),
+            path = home_dir,
             onConfirm = function(dirPath)
               logger.dbg("NW: Selected folder ", dirPath);
               self.currentPath = dirPath;
               self.notesWidget.isRunning = true;
               self.notesWidget:saveToDir(self.currentPath);
+              self.last_notes_dir = self.currentPath;
+              self:saveSetting()
             end,
             onCancel = function()
               self.notesWidget.isRunning = true;
@@ -203,43 +297,31 @@ function Notes:showMenu()
     },
     {
       text = _("Load"),
+      callback = self:getLoadNotesDialog(dialog)
+    },
+  }
+
+  local selectTemplateButton = {
+    {
+      text = _("Select template"),
       callback = function()
         UIManager:close(dialog)
-        logger.dbg("NW: Loading saved notes");
-        self.notesWidget.isRunning = false;
-        local path_chooser = PathChooser:new {
-          select_file = false,
-          path = G_reader_settings:readSetting("home_dir"),
+        local path_chooser;
+        path_chooser = PathChooser:new {
+          path = self.templates_dir or home_dir,
+          select_file = true,
           onConfirm = function(dirPath)
-            logger.dbg("NW: Selected folder ", dirPath);
-            self.currentPath = dirPath;
-            self.notesWidget.isRunning = true;
-            self.notesWidget:loadNotes(self.currentPath);
+            self.notesWidget:setTemplate(dirPath)
           end,
-          onCancel = function()
-            self.notesWidget.isRunning = true;
-          end
         }
         UIManager:show(path_chooser)
       end,
-    }
-
+    },
   }
-
-  if self.debug_plugin then
-    table.insert(buttons, {
-      text = _("Test"),
-      callback = function()
-        UIManager:close(dialog)
-        self:onRunTest();
-      end
-    }
-    )
-  end
 
   dialog = ButtonDialog:new {
     shrink_unneeded_width = true,
-    buttons = { buttons },
+    buttons = { saveLoadButtons, selectTemplateButton },
     anchor = function()
       return self.title_bar.left_button.image.dimen
     end,
