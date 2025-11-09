@@ -11,7 +11,6 @@ local Screen = require("device").screen
 local InputListener = require("./inputlistener")
 local RenderImage = require("ui/renderimage")
 local _ = require("gettext")
-require("./inputlistener")
 local LuaSettings = require("luasettings")
 
 ---@class BlitBuffer
@@ -54,6 +53,10 @@ local ERASER_BRUSH_SIZE = PEN_BRUSH_SIZE * 3
 ---@field setDirty fun()
 ---@field toggleTemplate fun()
 ---@field removeTemplate fun()
+---@field fingerInputEnabled boolean
+---@field setFingerInputEnabled fun()
+---@field useFingerAsEraser boolean
+---@field setUseFingerAsEraser fun()
 
 ---@type map<string,BlitBuffer>
 local TEMPLATES = {
@@ -172,20 +175,39 @@ function NotesWidget:interPolate(p1, p2)
   end
 end
 
----comment
+---@param enabled boolean
+function NotesWidget:setFingerInputEnabled(enabled)
+  self.fingerInputEnabled = enabled
+end
+
+---@param enabled boolean
+function NotesWidget:setUseFingerAsEraser(enabled)
+  self.useFingerAsEraser = enabled
+end
+
 ---@param tEvent TouchEvent
 ---@param hook_params any
 function NotesWidget:touchEventListener(tEvent, hook_params)
   if not self.isRunning or not tEvent then
     return
   end
+
+  if tEvent.toolType == InputListener.ToolType.FINGER then
+    if (not self.fingerInputEnabled) then
+      return
+    end
+    if self.useFingerAsEraser then
+      tEvent.type = InputListener.TouchEventType.ERASER_DOWN 
+      logger.dbg("NW: Using finger as eraser for event: " .. tostring(tEvent))
+    end
+  end
+
   self.penColor = PEN_COLOR
   self.brushSize = PEN_BRUSH_SIZE
   if tEvent.type == InputListener.TouchEventType.ERASER_DOWN then
     self.penColor = TRANSPARENT_ALPHA
     self.brushSize = ERASER_BRUSH_SIZE
   end
-
 
   local tx = tEvent.x - self.dimen.x;
   local ty = tEvent.y - self.dimen.y;
