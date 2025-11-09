@@ -124,6 +124,7 @@ local InputListener = {
 
 InputListener.ToolSubType = ToolSubType;
 InputListener.TouchEventType = TouchEventType
+InputListener.ToolType = ToolType
 
 ---This function needs to be called when the touch events need to be processed by the widget, normally when widget is displayed
 function InputListener:setupGestureDetector()
@@ -196,7 +197,7 @@ function InputListener:createTouchEvent(event, time)
     y = y,
     time = event.timev,
     type = touchEventType,
-    toolType = event.toolType or ToolType.FINGER,
+    toolType = event.tool or ToolType.FINGER,
     slot = event.slot
   }
 end
@@ -216,8 +217,6 @@ function print_objs(...)
 end
 
 function InputListener:__feedEvent(events)
-  logger.dbg("NW: Got Events: ", #events)
-
   for _, ev in ipairs(events) do
     if ev["id"] == -1 then
       logger.dbg("NW: Ignoring ev: " .. print_objs(ev))

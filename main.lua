@@ -24,14 +24,22 @@ local DataStorage = require("datastorage")
 local NotesWidget = require("./widget")
 local InputListener = require("./inputlistener")
 local home_dir = nil
-local FFIUtil = require("ffi/util")
-local T = FFIUtil.template
+local ffiutil = require("ffi/util")
+local T = ffiutil.template
+
+
+---@class NotesConfig
+---@field last_opened_dir string
+---@field templates_dir string
+---@field finger_input_enabled boolean
+---@field use_finger_as_eraser boolean
 
 ---@class Notes
 ---@field margin int
 ---@field notesWidget NotesWidget
 ---@field title_bar TitleBar
 ---@field currentPath string
+---@field config NotesConfig
 
 ---@type Notes
 local Notes = WidgetContainer:new {
@@ -39,6 +47,7 @@ local Notes = WidgetContainer:new {
   is_doc_only = false,
 }
 local notesWidgetInstance = NotesWidget:new();
+
 function Notes:init()
   logger.dbg("Notes:init");
   home_dir = G_reader_settings:readSetting("home_dir")
@@ -46,8 +55,10 @@ function Notes:init()
   self.margin = 10;
   self.n_settings = self:readSetting()
 
-  self.last_notes_dir = self.n_settings.data.notes.last_notes_dir or nil;
-  self.templates_dir = self.n_settings.data.notes.templates_dir or nil;
+  self.config = self.n_settings.data.notes;
+
+  self.notesWidget:setFingerInputEnabled(self.config.finger_input_enabled)
+  self.notesWidget:setUseFingerAsEraser(self.config.use_finger_as_eraser)
 
   self.layout = {}
   self.width = self.width or math.floor(math.min(Screen:getWidth(), Screen:getHeight()) - self.margin * 2)
@@ -146,8 +157,8 @@ end
 function Notes:onNotesStart()
   self.isRunning = true
   self.notesWidget.isRunning = true
-  if self.last_notes_dir then
-    self.currentPath = self.last_notes_dir
+  if self.config.last_opened_dir then
+    self.currentPath = self.config.last_opened_dir
     self.notesWidget:loadNotes(self.currentPath);
   end
   UIManager:show(self.notesWidget);
@@ -184,7 +195,7 @@ function Notes:addToMainMenu(menu_items)
       {
         text = _("New Notes"),
         callback = function()
-          self.last_notes_dir = nil
+          self.config.last_opened_dir = nil
           self.currentPath = nil
           self:saveSetting()
           self.notesWidget:newNotes()
@@ -203,20 +214,42 @@ function Notes:addToMainMenu(menu_items)
         text = _("Settings"),
         sub_item_table = {
           {
-            text = T(_("Templates dir.: %1"), _(self.templates_dir or "not set")),
+            text = T(_("Templates dir.: %1"), _(self.config.templates_dir or "not set")),
             callback = function()
               local path_chooser;
               path_chooser = PathChooser:new {
                 path = home_dir,
                 select_file = false,
                 onConfirm = function(dirPath)
-                  self.templates_dir = dirPath;
+                  self.config.templates_dir = dirPath;
                   self:saveSetting()
                 end,
               }
               UIManager:show(path_chooser)
             end,
-          }
+          },
+          {
+            text = _("Finger input"),
+            checked_func = function() return self.config.finger_input_enabled end,
+            check_callback_updates_menu = true,
+            callback = function(touchmenu_instance)
+              self.config.finger_input_enabled = not self.config.finger_input_enabled
+              self.notesWidget:setFingerInputEnabled(self.config.finger_input_enabled)
+              self:saveSetting()
+              touchmenu_instance:updateItems()
+            end,
+          },
+          {
+            text = _("Use Finger as Eraser "),
+            checked_func = function() return self.config.use_finger_as_eraser end,
+            check_callback_updates_menu = true,
+            callback = function(touchmenu_instance)
+              self.config.use_finger_as_eraser = not self.config.use_finger_as_eraser
+              self.notesWidget:setUseFingerAsEraser(self.config.use_finger_as_eraser)
+              self:saveSetting()
+              touchmenu_instance:updateItems()
+            end,
+          },
         }
       },
     }
@@ -225,16 +258,23 @@ end
 
 function Notes:readSetting()
   local n_settings = LuaSettings:open(DataStorage:getSettingsDir() .. "/notes.lua")
-  n_settings:readSetting("notes", {})
+  n_settings:readSetting("notes", {
+    last_opened_dir = nil,
+    templates_dir = nil,
+    finger_input_enabled = true,
+  })
+  if n_settings.data.notes.finger_input_enabled == nil then
+    n_settings.data.notes.finger_input_enabled = true
+  end
+  
+  if n_settings.data.notes.use_finger_as_eraser == nil then
+    n_settings.data.notes.use_finger_as_eraser = false
+  end
   return n_settings
 end
 
 function Notes:saveSetting()
-  local tempsettings = {
-    last_notes_dir = self.last_notes_dir,
-    templates_dir = self.templates_dir,
-  }
-  self.n_settings:saveSetting("notes", tempsettings)
+  self.n_settings:saveSetting("notes", self.config)
   self.n_settings:flush()
 end
 
@@ -253,7 +293,7 @@ function Notes:getLoadNotesDialog(dialog)
         self.currentPath = dirPath;
         self.notesWidget.isRunning = true;
         self.notesWidget:loadNotes(self.currentPath);
-        self.last_notes_dir = self.currentPath;
+        self.config.last_opened_dir = self.currentPath;
         self:saveSetting()
       end,
       onCancel = function()
@@ -284,7 +324,7 @@ function Notes:showMenu()
               self.currentPath = dirPath;
               self.notesWidget.isRunning = true;
               self.notesWidget:saveToDir(self.currentPath);
-              self.last_notes_dir = self.currentPath;
+              self.config.last_opened_dir = self.currentPath;
               self:saveSetting()
             end,
             onCancel = function()
@@ -308,7 +348,7 @@ function Notes:showMenu()
         UIManager:close(dialog)
         local path_chooser;
         path_chooser = PathChooser:new {
-          path = self.templates_dir or home_dir,
+          path = self.config.templates_dir or home_dir,
           select_file = true,
           onConfirm = function(dirPath)
             self.notesWidget:setTemplate(dirPath)
