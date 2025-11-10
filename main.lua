@@ -262,6 +262,7 @@ function Notes:readSetting()
     last_opened_dir = nil,
     templates_dir = nil,
     finger_input_enabled = true,
+    use_finger_as_eraser = false,
   })
   if n_settings.data.notes.finger_input_enabled == nil then
     n_settings.data.notes.finger_input_enabled = true
