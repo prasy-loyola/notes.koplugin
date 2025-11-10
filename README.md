@@ -23,7 +23,7 @@ Use the hamburger menu at the top-left to save the notes to a directory as png f
 3. [x] Save into storage as simple image files (.png)
 4. [x] Load notes from storage
 5. [ ] Multi-color pens
-6. [ ] Eraser (supports kobo stylus, no icon to select eraser at the moment)
+6. [x] Eraser (The icon doesn't show if the eraser is enabled or not at the moment)
 7. [x] Clear page ~~/whole notes~~
 8. [x] Setup a background / template for page
 
@@ -46,3 +46,4 @@ The reason we have to do this is because the core doesn't give a mechanism to re
 
 # Known Issues
 1. The Koreader app crashes in Android after using the plugin for some time. Not have had the time to debug that. 
+1. There is no indication on Eraser icon whether its selected or not

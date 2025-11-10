@@ -57,8 +57,8 @@ function Notes:init()
 
   self.config = self.n_settings.data.notes;
 
-  self.notesWidget:setFingerInputEnabled(self.config.finger_input_enabled)
-  self.notesWidget:setUseFingerAsEraser(self.config.use_finger_as_eraser)
+  self.notesWidget.fingerInputEnabled = self.config.finger_input_enabled
+  self.notesWidget.useFingerAsEraser = self.config.use_finger_as_eraser
 
   self.layout = {}
   self.width = self.width or math.floor(math.min(Screen:getWidth(), Screen:getHeight()) - self.margin * 2)
@@ -108,7 +108,14 @@ function Notes:init()
       callback = function()
         self.notesWidget:toggleTemplate();
       end
-    }
+    },
+    IconButton:new {
+      height = 50,
+      icon = "zoom.row",
+      callback = function()
+        self.notesWidget:toggleEraserEnabled()
+      end
+    },
   }
 
   self.dialog_frame = FrameContainer:new {
@@ -234,7 +241,7 @@ function Notes:addToMainMenu(menu_items)
             check_callback_updates_menu = true,
             callback = function(touchmenu_instance)
               self.config.finger_input_enabled = not self.config.finger_input_enabled
-              self.notesWidget:setFingerInputEnabled(self.config.finger_input_enabled)
+              self.notesWidget.fingerInputEnabled = self.config.finger_input_enabled
               self:saveSetting()
               touchmenu_instance:updateItems()
             end,
@@ -245,7 +252,7 @@ function Notes:addToMainMenu(menu_items)
             check_callback_updates_menu = true,
             callback = function(touchmenu_instance)
               self.config.use_finger_as_eraser = not self.config.use_finger_as_eraser
-              self.notesWidget:setUseFingerAsEraser(self.config.use_finger_as_eraser)
+              self.notesWidget.useFingerAsEraser = self.config.use_finger_as_eraser
               self:saveSetting()
               touchmenu_instance:updateItems()
             end,
@@ -267,7 +274,7 @@ function Notes:readSetting()
   if n_settings.data.notes.finger_input_enabled == nil then
     n_settings.data.notes.finger_input_enabled = true
   end
-  
+
   if n_settings.data.notes.use_finger_as_eraser == nil then
     n_settings.data.notes.use_finger_as_eraser = false
   end

@@ -54,9 +54,8 @@ local ERASER_BRUSH_SIZE = PEN_BRUSH_SIZE * 3
 ---@field toggleTemplate fun()
 ---@field removeTemplate fun()
 ---@field fingerInputEnabled boolean
----@field setFingerInputEnabled fun()
----@field useFingerAsEraser boolean
----@field setUseFingerAsEraser fun()
+---@field eraserEnabled boolean
+---@field toggleEraserEnabled fun()
 
 ---@type map<string,BlitBuffer>
 local TEMPLATES = {
@@ -104,6 +103,7 @@ function NotesWidget:init()
   self.strokeDelay = 10 * 1000
   self.strokeTime = 60 * 1000
   self.pages = {}
+  self.eraserEnabled = false
   self:newPage()
 end
 
@@ -175,14 +175,10 @@ function NotesWidget:interPolate(p1, p2)
   end
 end
 
----@param enabled boolean
-function NotesWidget:setFingerInputEnabled(enabled)
-  self.fingerInputEnabled = enabled
-end
 
 ---@param enabled boolean
-function NotesWidget:setUseFingerAsEraser(enabled)
-  self.useFingerAsEraser = enabled
+function NotesWidget:toggleEraserEnabled(enabled)
+  self.eraserEnabled = not self.eraserEnabled
 end
 
 ---@param tEvent TouchEvent
@@ -204,7 +200,7 @@ function NotesWidget:touchEventListener(tEvent, hook_params)
 
   self.penColor = PEN_COLOR
   self.brushSize = PEN_BRUSH_SIZE
-  if tEvent.type == InputListener.TouchEventType.ERASER_DOWN then
+  if self.eraserEnabled or tEvent.type == InputListener.TouchEventType.ERASER_DOWN then
     self.penColor = TRANSPARENT_ALPHA
     self.brushSize = ERASER_BRUSH_SIZE
   end
