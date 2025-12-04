@@ -3,7 +3,9 @@
 `notes.koplugin` is a plugin for KOReader to write handwritten notes.
 
 ## How to install?
-Download this project as .zip file and extract into KOReader's plugin directory
+Download the release package from the releases page. 
+
+Extract the zip/archive into KOReader's `plugins` directory, and make sure the created folder name is 'notes.koplugin'.
 
 ## How to use it?
 Once the app is loaded, you will see the `NEW: Notes` option under the tools menu. 
