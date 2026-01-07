@@ -161,10 +161,12 @@ function Notes:onClose()
   InputListener:cleanupGestureDetector();
 end
 
+local first_start = true
 function Notes:onNotesStart()
   self.isRunning = true
   self.notesWidget.isRunning = true
-  if self.config.last_opened_dir then
+  if self.config.last_opened_dir and first_start then
+    first_start = false
     self.currentPath = self.config.last_opened_dir
     self.notesWidget:loadNotes(self.currentPath);
   end
